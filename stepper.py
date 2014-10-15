@@ -8,20 +8,25 @@ from RPi import GPIO
 class Stepper(threading.Thread):
     #half-steppipng pattern, also possible to skip every other for full-stepping
     pattern = [
-        [1,0,0,0],
-        [1,0,1,0],
-        [0,0,1,0],
+        #[1,0,0,0],
+        #[1,0,1,0],
+        #[0,0,1,0],
+        #[0,1,1,0],
+        #[0,1,0,0],
+        #[0,1,0,1],
+        #[0,0,0,1],
+        #[1,0,0,1]]
+        [1,1,0,0],
         [0,1,1,0],
-        [0,1,0,0],
-        [0,1,0,1],
-        [0,0,0,1],
+        [0,0,1,1],
         [1,0,0,1]]
 
-    def __init__(self, pin1=5, pin2=6, pin3=13, pin4=19, timeout=2):
+    def __init__(self, pin1=5, pin2=6, pin3=13, pin4=19, timeout=5):
         self.queue = Queue.Queue()
         self.finished = threading.Event()
         
         self.pins = [pin1, pin2, pin3, pin4]
+        GPIO.setmode(GPIO.BCM)
         GPIO.setup(pin1, GPIO.OUT)
         GPIO.setup(pin2, GPIO.OUT)
         GPIO.setup(pin3, GPIO.OUT)
@@ -29,6 +34,8 @@ class Stepper(threading.Thread):
 
         self.phase = 0
         self.timeout = timeout
+        super(Stepper, self).__init__()
+        self.daemon = True
 
     def stop(self):
         self.queue.put((None, None))
@@ -53,7 +60,7 @@ class Stepper(threading.Thread):
     def run(self):
         step, speed = self.queue.get()
         while step is not None:
-            for pin, out in zip(self.pins, self.pattern[self.phase]):
+            for pin, out in zip(self.pins, self.pattern[self.phase%len(self.pattern)]):
                 GPIO.output(pin, out)
 
             self._step(step, speed)
@@ -69,11 +76,14 @@ class Stepper(threading.Thread):
 
         for pin in self.pins:
             GPIO.output(pin, False)
+        GPIO.cleanup()
 
     def _step(self, step, speed):
-        steps = range(step)
+        print "Stepping %d steps at %d steps / second"%(step, speed)
         if step < 0:
             steps = range(step, 0)[::-1]
+        else:
+            steps = range(step)
 
         for i in steps:
             now = time.time()
@@ -89,7 +99,7 @@ class Stepper(threading.Thread):
 
 
 class Regulator(object):
-    def __init__(self, maxsteps=3072, minsteps=1024, speed=10, ignite_pin=26):
+    def __init__(self, maxsteps=4500, minsteps=2500, speed=200, ignite_pin=26):
         """Set up a stepper-controlled regulator. Implement some safety measures
         to make sure everything gets shut off at the end
 
@@ -110,23 +120,25 @@ class Regulator(object):
         self.max = maxsteps
         self.min = minsteps
         self.speed = speed
-        self.lowthres = lowthres
 
         self.ignite_pin = ignite_pin
         if ignite_pin is not None:
             GPIO.setup(ignite_pin, OUT)
+        
+        def exit():
+            self.off()
+            self.stepper.stop()
+        atexit.register(exit)
 
-        atexit.register(self.off)
-
-    def ignite(self, start=2048, delay=5):
+    def ignite(self, start=2800, delay=5):
         self.stepper.step(start, self.speed, block=True)
         if self.ignite_pin is not None:
             GPIO.output(self.ignite_pin, True)
         time.sleep(delay)
         if self.ignite_pin is not None:
             GPIO.output(self.ignite_pin, False)
-        self.stepper.step(start - self.min, self.speed)
-        self.current = start-stop
+        self.stepper.step(self.min - start, self.speed)
+        self.current = self.min
 
     def off(self, block=True):
         self.stepper.step(-self.current, self.speed, block=block)
@@ -135,7 +147,8 @@ class Regulator(object):
     def set(self, value, block=True):
         if not 0 < value < 1:
             raise ValueError("Must give fraction between 0 and 1")
-        target = value * (self.max - self.min) + self.min
+        target = int(value * (self.max - self.min) + self.min)
         nsteps = target - self.current
+        print "Currently at %d, target %d, stepping %d"%(self.current, target, nsteps)
         self.current = target
         self.stepper.step(nsteps, self.speed, block=block)
