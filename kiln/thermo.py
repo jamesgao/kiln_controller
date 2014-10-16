@@ -1,8 +1,11 @@
-import time
 import re
-import threading
+import time
 import datetime
+import logging
+import threading
 from collections import deque
+
+logger = logging.getLogger("thermo")
 
 def temp_to_cone(temp):
     """Convert the current temperature to cone value using linear interpolation"""
@@ -20,9 +23,15 @@ class Monitor(threading.Thread):
         self.device = "/sys/bus/w1/devices/%s/w1_slave"%name
         self.history = deque(maxlen=1024)
 
-        from Adafruit_alphanumeric import AlphaScroller
-        self.display = AlphaScroller(interval=.4)
-        self.display.start()
+        try:
+            from Adafruit_alphanumeric import AlphaScroller
+            self.display = AlphaScroller(interval=.4)
+            self.display.start()
+            self.display.hide()
+        except ImportError:
+            logger.info("Could not start AlphaScroller")
+            self.display = None
+
         super(Monitor, self).__init__()
         self.running = True
 
@@ -41,7 +50,8 @@ class Monitor(threading.Thread):
 
     def stop(self):
         self.running = False
-        self.display.stop()
+        if self.display is not None:
+            self.display.stop()
 
     @property
     def temperature(self):
@@ -53,13 +63,17 @@ class Monitor(threading.Thread):
             fahr = temp * 9. / 5. + 32.
             now = datetime.datetime.now()
             self.history.append((now, temp))
-            
-            text = list('%0.0f'%temp) + ['degree'] + list('C  %0.0f'%fahr)+['degree'] + list("F")
 
-            if 600 <= temp:
-                text += [' ', ' ', 'cone']+list("%0.1f"%temp_to_cone(temp))
-            
-            self.display.set_text(text, reset=False)
+            if self.display is not None:
+                if temp > 50:
+                    if not self.display.shown:
+                        self.display.show()
+                    text = list('%0.0f'%temp) + ['degree'] + list('C  %0.0f'%fahr)+['degree'] + list("F")
+                    if 600 <= temp:
+                        text += [' ', ' ', 'cone']+list("%0.1f"%temp_to_cone(temp))
+                    self.display.set_text(text, reset=False)
+                elif self.display.shown:
+                    self.display.hide()
 
 if __name__ == "__main__":
     mon = Monitor()

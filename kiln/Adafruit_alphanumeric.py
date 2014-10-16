@@ -172,13 +172,17 @@ class AlphaScroller(threading.Thread):
     def __init__(self, address=0x70, interval=.25):
         self.interval = interval
         self.disp = Alphanumeric(address)
-        self.text = [(' ',)]*4
+        self.text = ''
         self.counter = 0
+        self.pause = threading.Event()
+        self.pause.set()
+        self.shown = True
 
         super(AlphaScroller, self).__init__()
         self.running = True
 
     def stop(self):
+        self.pause.set()
         self.running = False
     
     def set_text(self, text, pad=True, reset=True):
@@ -200,6 +204,19 @@ class AlphaScroller(threading.Thread):
     
     def set_speed(self, interval):
         self.interval = interval
+
+    def show(self):
+        self.pause.set()
+        self.shown = True
+
+    def hide(self):
+        self.pause.clear()
+        self.clear()
+        self.shown = False
+
+    def clear(self):
+        for i in range(4):
+            self.disp.writeChar(i, ' ')
     
     def run(self):
         while self.running:
@@ -213,8 +230,8 @@ class AlphaScroller(threading.Thread):
                 self.disp.writeChar(i, *char)
             time.sleep(self.interval)
             self.counter += 1
-        for i in range(4):
-            self.disp.writeChar(i, ' ')
+            self.pause.wait()
+        self.clear()
 
 if __name__ == "__main__":
     scroller = AlphaScroller(interval=.4)
