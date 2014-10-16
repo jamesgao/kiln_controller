@@ -168,16 +168,14 @@ class Alphanumeric(object):
         # Set the appropriate digit
         self.disp.setBufferRow(charNumber, value | (dot << 14))
 
-
 class AlphaScroller(threading.Thread):
     def __init__(self, address=0x70, interval=.25):
         self.interval = interval
         self.disp = Alphanumeric(address)
-        self.text = [('',)]*4
+        self.text = [(' ',)]*4
         self.counter = 0
 
         super(AlphaScroller, self).__init__()
-        self.daemon = True
         self.running = True
 
     def stop(self):
@@ -186,12 +184,12 @@ class AlphaScroller(threading.Thread):
     def set_text(self, text, pad=True, reset=True):
         i = 0
         self.text = []
-        while i < len(text)-1:
-            if text[i+1] == ".":
+        while i < len(text):
+            if i+1 < len(text) and text[i+1] == ".":
+                self.text.append((text[i], True))
                 i+= 1
-                self.text.push((text[i], True))
             else:
-                self.text.push((text[i],))
+                self.text.append((text[i],))
             i+= 1
 
         if pad:
@@ -206,16 +204,24 @@ class AlphaScroller(threading.Thread):
     def run(self):
         while self.running:
             for i in range(4):
-                char = self.text[(self.counter+i) % len(self.text)]
+                if len(self.text) < 4:
+                    char = self.text[i] if i < len(self.text) else (' ',)
+                else:
+                    char = self.text[(self.counter+i) % len(self.text)]
+                if len(char[0]) == 0:
+                    print self.text
                 self.disp.writeChar(i, *char)
             time.sleep(self.interval)
             self.counter += 1
+        for i in range(4):
+            self.disp.writeChar(i, ' ')
 
 if __name__ == "__main__":
-    scroller = AlphaScroller()
-    scoller.set_text(list("Hello. World.")+["cone","degree"])
+    scroller = AlphaScroller(interval=.4)
+    scroller.set_text(list("Hello. World.")+["cone","degree"])
     scroller.start()
     try:
-        scroller.join()
+        while scroller.isAlive():
+            scroller.join(1)
     except KeyboardInterrupt:
         scroller.stop()

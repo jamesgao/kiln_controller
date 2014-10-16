@@ -24,7 +24,6 @@ class Monitor(threading.Thread):
         self.display = AlphaScroller(interval=.4)
         self.display.start()
         super(Monitor, self).__init__()
-        self.daemon = True
         self.running = True
 
     def _read_temp(self):
@@ -49,7 +48,7 @@ class Monitor(threading.Thread):
         return self.history[-1][1]
 
     def run(self):
-        while running:
+        while self.running:
             temp = self._read_temp()
             fahr = temp * 9. / 5. + 32.
             now = datetime.datetime.now()
@@ -59,13 +58,14 @@ class Monitor(threading.Thread):
 
             if 600 <= temp:
                 text += [' ', ' ', 'cone']+list("%0.1f"%temp_to_cone(temp))
-            text += '    '
+            
             self.display.set_text(text, reset=False)
 
 if __name__ == "__main__":
     mon = Monitor()
     mon.start()
     try:
-        mon.join()
+        while mon.isAlive():
+            mon.join(1)
     except KeyboardInterrupt:
         mon.stop()
