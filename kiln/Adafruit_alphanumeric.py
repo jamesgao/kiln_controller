@@ -173,7 +173,7 @@ class AlphaScroller(threading.Thread):
     def __init__(self, address=0x70, interval=.25):
         self.interval = interval
         self.disp = Alphanumeric(address)
-        self.text = "    "
+        self.text = [('',)]*4
         self.counter = 0
 
         super(AlphaScroller, self).__init__()
@@ -206,8 +206,8 @@ class AlphaScroller(threading.Thread):
     def run(self):
         while self.running:
             for i in range(4):
-                char = self.value[(self.counter+i) % len(self.value)]
-                self.disp.writeChar(i, char)
+                char = self.text[(self.counter+i) % len(self.text)]
+                self.disp.writeChar(i, *char)
             time.sleep(self.interval)
             self.counter += 1
 
