@@ -161,7 +161,7 @@ class Alphanumeric(object):
         "Sets a single decimal or hexademical value (0..9 and A..F)"
         if (charNumber > 4):
             return
-        if value in special:
+        if value in self.special:
             value = self.special[value]
         else:
             value = self.lut[ord(value)]
@@ -169,7 +169,7 @@ class Alphanumeric(object):
         self.disp.setBufferRow(charNumber, value | (dot << 14))
 
 
-class AlphaScoller(threading.Thread):
+class AlphaScroller(threading.Thread):
     def __init__(self, address=0x70, interval=.25):
         self.interval = interval
         self.disp = Alphanumeric(address)
@@ -191,5 +191,5 @@ class AlphaScoller(threading.Thread):
             for i in range(4):
                 char = self.value[(self.counter+i) % len(self.value)]
                 self.disp.writeChar(i, char)
-            time.sleep(interval)
+            time.sleep(self.interval)
             self.counter += 1

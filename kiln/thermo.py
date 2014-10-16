@@ -1,4 +1,5 @@
 import time
+import re
 import threading
 import datetime
 from collections import deque
@@ -22,6 +23,8 @@ class Monitor(threading.Thread):
         from Adafruit_alphanumeric import AlphaScroller
         self.display = AlphaScroller(interval=.4)
         self.display.start()
+        super(Monitor, self).__init__()
+        self.daemon = True
 
     def _read_temp(self):
         with open(self.device, 'r') as f:
@@ -44,7 +47,7 @@ class Monitor(threading.Thread):
         while True:
             temp = self._read_temp()
             fahr = temp * 9. / 5. + 32.
-            now = datetime.datetime()
+            now = datetime.datetime.now()
             self.history.append((now, temp))
             
             text = list('%0.0f'%temp) + ['degree'] + list('C  %0.0f'%fahr)+['degree'] + list("F")
@@ -53,3 +56,8 @@ class Monitor(threading.Thread):
                 text += [' ', ' ', 'cone']+list("%0.1f"%temp_to_cone(temp))
             text += '    '
             self.display.text = text
+
+if __name__ == "__main__":
+    mon = Monitor()
+    mon.start()
+    mon.join()
