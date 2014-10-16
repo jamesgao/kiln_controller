@@ -25,6 +25,7 @@ class Monitor(threading.Thread):
         self.display.start()
         super(Monitor, self).__init__()
         self.daemon = True
+        self.running = True
 
     def _read_temp(self):
         with open(self.device, 'r') as f:
@@ -39,12 +40,16 @@ class Monitor(threading.Thread):
         if match is not None:
             return float(match.group(1)) / 1000.0
 
+    def stop(self):
+        self.running = False
+        self.display.stop()
+
     @property
     def temperature(self):
         return self.history[-1][1]
 
     def run(self):
-        while True:
+        while running:
             temp = self._read_temp()
             fahr = temp * 9. / 5. + 32.
             now = datetime.datetime.now()
@@ -55,9 +60,12 @@ class Monitor(threading.Thread):
             if 600 <= temp:
                 text += [' ', ' ', 'cone']+list("%0.1f"%temp_to_cone(temp))
             text += '    '
-            self.display.text = text
+            self.display.set_text(text, reset=False)
 
 if __name__ == "__main__":
     mon = Monitor()
     mon.start()
-    mon.join()
+    try:
+        mon.join()
+    except KeyboardInterrupt:
+        mon.stop()

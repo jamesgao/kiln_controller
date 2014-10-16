@@ -173,23 +173,49 @@ class AlphaScroller(threading.Thread):
     def __init__(self, address=0x70, interval=.25):
         self.interval = interval
         self.disp = Alphanumeric(address)
+        self.text = "    "
+        self.counter = 0
+
         super(AlphaScroller, self).__init__()
-        self.value = "    "
-        self.counter = 0
+        self.daemon = True
+        self.running = True
+
+    def stop(self):
+        self.running = False
     
-    def set_text(self, text, pad=True):
-        self.text = text
+    def set_text(self, text, pad=True, reset=True):
+        i = 0
+        self.text = []
+        while i < len(text)-1:
+            if text[i+1] == ".":
+                i+= 1
+                self.text.push((text[i], True))
+            else:
+                self.text.push((text[i],))
+            i+= 1
+
         if pad:
-            self.text += "   "
-        self.counter = 0
+            self.text += [(' ',)]*4
+
+        if reset:
+            self.counter = 0
     
     def set_speed(self, interval):
         self.interval = interval
     
     def run(self):
-        while True:
+        while self.running:
             for i in range(4):
                 char = self.value[(self.counter+i) % len(self.value)]
                 self.disp.writeChar(i, char)
             time.sleep(self.interval)
             self.counter += 1
+
+if __name__ == "__main__":
+    scroller = AlphaScroller()
+    scoller.set_text(list("Hello. World.")+["cone","degree"])
+    scroller.start()
+    try:
+        scroller.join()
+    except KeyboardInterrupt:
+        scroller.stop()
