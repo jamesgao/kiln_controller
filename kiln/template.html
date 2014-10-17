@@ -23,6 +23,25 @@
       .output-slider {
         width:7% !important;
       }
+
+      .axis path,
+      .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+      }
+
+      .line {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 1.5px;
+      }
+
+      #graph {
+        width:100%;
+        height:500px;
+      }
+
     </style>
 
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
@@ -70,7 +89,7 @@
 
       <div class="row">
         <div class="col-sm-8 col-md-8 row-space">
-          <img src="http://placehold.it/1024x500/" class="img-responsive row-space" alt="Graph" />
+          <svg id="graph" class="row-space"></svg>
           
           <div class="btn-group btn-group-justified row-space">
             <div class="btn-group">
@@ -108,5 +127,7 @@
 
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <script type="text/javascript" src="temp_graph.js"></script>
   </body>
 </html>
