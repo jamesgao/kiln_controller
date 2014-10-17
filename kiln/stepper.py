@@ -6,16 +6,7 @@ import Queue
 from RPi import GPIO
 
 class Stepper(threading.Thread):
-    #half-steppipng pattern, also possible to skip every other for full-stepping
     pattern = [
-        #[1,0,0,0],
-        #[1,0,1,0],
-        #[0,0,1,0],
-        #[0,1,1,0],
-        #[0,1,0,0],
-        #[0,1,0,1],
-        #[0,0,0,1],
-        #[1,0,0,1]]
         [1,1,0,0],
         [0,1,1,0],
         [0,0,1,1],
@@ -38,7 +29,7 @@ class Stepper(threading.Thread):
         self.daemon = True
 
     def stop(self):
-        self.queue.put((None, None))
+        self.queue.put((None, None, None))
 
     def step(self, num, speed=10, block=False):
         """Step the stepper motor
@@ -53,18 +44,22 @@ class Stepper(threading.Thread):
             Block while stepping?
         """
         self.finished.clear()
-        self.queue.put((num, speed))
-        if block:
-            self.finished.wait()
+        self.queue.put((num, speed, block))
+        self.finished.wait()
 
     def run(self):
-        step, speed = self.queue.get()
+        target = 0
+        step, speed, block = self.queue.get()
         while step is not None:
             for pin, out in zip(self.pins, self.pattern[self.phase%len(self.pattern)]):
                 GPIO.output(pin, out)
 
-            self._step(step, speed)
-            self.finished.set()
+            if block:
+                self._step(step, speed)
+                self.finished.set()
+            else:
+                self.finished.set()
+                self._step_noblock(step, speed)
 
             try:
                 step, speed = self.queue.get(True, self.timeout)
@@ -77,6 +72,29 @@ class Stepper(threading.Thread):
         for pin in self.pins:
             GPIO.output(pin, False)
         GPIO.cleanup()
+
+    def _step_noblock(self, step, speed):
+        ispeed = 1. / (2.*speed)
+        target = self.phase + step
+        while self.phase != target:
+            now = time.time()
+            self.phase += 1 if target > self.phase else 1
+            output = self.pattern[self.phase%len(self.pattern)]
+            for pin, out in zip(self.pins, output):
+                GPIO.output(pin, out)
+
+            if not self.queue.empty():
+                step, speed, block = self.queue.get()
+                ispeed = 1. / (2.*speed)
+                target += step
+                if block:
+                    self._step(target - self.phase, speed)
+
+            diff = ispeed - (time.time() - now)
+            if (diff) > 0:
+                time.sleep(diff) 
+            else:
+                warnings.warn("Step rate too high, stepping as fast as possible")
 
     def _step(self, step, speed):
         print "Stepping %d steps at %d steps / second"%(step, speed)
@@ -144,7 +162,7 @@ class Regulator(object):
         self.stepper.step(-self.current, self.speed, block=block)
         self.current = 0
 
-    def set(self, value, block=True):
+    def set(self, value, block=False):
         if not 0 < value < 1:
             raise ValueError("Must give fraction between 0 and 1")
         target = int(value * (self.max - self.min) + self.min)

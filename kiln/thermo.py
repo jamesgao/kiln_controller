@@ -21,7 +21,7 @@ def temp_to_cone(temp):
 class Monitor(threading.Thread):
     def __init__(self, name="3b-000000182b57"):
         self.device = "/sys/bus/w1/devices/%s/w1_slave"%name
-        self.history = deque(maxlen=1024)
+        self.history = deque(maxlen=1048576)
 
         try:
             from Adafruit_alphanumeric import AlphaScroller
