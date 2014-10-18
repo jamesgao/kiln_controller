@@ -1,6 +1,7 @@
 import time
 import atexit
 import threading
+import warnings
 import Queue
 
 from RPi import GPIO
@@ -78,7 +79,7 @@ class Stepper(threading.Thread):
         target = self.phase + step
         while self.phase != target:
             now = time.time()
-            self.phase += 1 if target > self.phase else 1
+            self.phase += 1 if target > self.phase else -1
             output = self.pattern[self.phase%len(self.pattern)]
             for pin, out in zip(self.pins, output):
                 GPIO.output(pin, out)
@@ -89,6 +90,7 @@ class Stepper(threading.Thread):
                 target += step
                 if block:
                     self._step(target - self.phase, speed)
+                self.finished.set()
 
             diff = ispeed - (time.time() - now)
             if (diff) > 0:
@@ -117,7 +119,7 @@ class Stepper(threading.Thread):
 
 
 class Regulator(object):
-    def __init__(self, maxsteps=4500, minsteps=2500, speed=200, ignite_pin=26):
+    def __init__(self, maxsteps=4500, minsteps=2500, speed=150, ignite_pin=26):
         """Set up a stepper-controlled regulator. Implement some safety measures
         to make sure everything gets shut off at the end
 
@@ -163,7 +165,7 @@ class Regulator(object):
         self.current = 0
 
     def set(self, value, block=False):
-        if not 0 < value < 1:
+        if not 0 <= value <= 1:
             raise ValueError("Must give fraction between 0 and 1")
         target = int(value * (self.max - self.min) + self.min)
         nsteps = target - self.current
