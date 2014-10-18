@@ -73,7 +73,7 @@ class Monitor(threading.Thread):
                     fahr = temp * 9. / 5. + 32.
                     text = list('%0.0f'%temp) + ['degree'] + list('C  %0.0f'%fahr)+['degree'] + list("F")
                     if 600 <= temp:
-                        text += [' ', ' ', 'cone']+list("%0.1f"%temp_to_cone(temp))
+                        text += [' ', ' ', 'cone']+list(temp_to_cone(temp))
                     self.display.set_text(text, reset=False)
                 elif self.display.shown:
                     self.display.hide()
