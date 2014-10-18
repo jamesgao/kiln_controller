@@ -1,47 +1,64 @@
 import stepper
-import datetime
-import numpy as np
+import time
+import random
 import warnings
 
 class KilnController(object):
-	""" schedule is of the format:
-	[(time1, temp1), (time2, temp2), .... (timen, tempn)]
-	where time is in seconds from start of firing and temp is in C"""
-
-	def __init__(self, schedule, monitor, interval=None):
+	def __init__(self, schedule, monitor, interval=5, start_time=None, Kp=.01, Ki=.001, Kd=.001, simulate=True):
 		self.schedule = schedule
-		if interval is not None: # interpolate schedule at specified interval size
-			temp = np.array(self.schedule)
-			temp2 = []
-			for i in range(len(self.schedule)-1):
-				times = np.arange(self.schedule[i][0], self.schedule[i+1][0], interval)
-				temps = np.arange(self.schedule[i][1], self.schedule[i+1][1], interval)
-				temp2.extend([(times[j], temps[j]) for j in range(len(times))])
-			self.schedule = temp2
-		self.start_time = datetime.datetime.now()
-		self.setpoint = schedule.pop(0)
 		self.monitor = monitor
-		self.pid = PID(3.0,0.4,1.2)
-		self.regulator = stepper.Regulator()
-		self.regulator.start()
+		self.interval = interval
+		self.start_time = start_time
+		if start_time is None:
+			self.start_time = time.time()
+		self.regulator = stepper.Regulator(simulate=simulate)
+		self.pid = PID(Kp, Ki, Kd)
+		self.simulate = simulate
+		if simulate:
+			self.schedule.insert(0, [0, 15])
+		else:
+			self.schedule.insert(0, [0, self.monitor.temperature])
 
 	@property
 	def elapsed(self):
 		''' Returns the elapsed time from start in seconds'''
-		return datetime.datetime.now() - self.start_time
+		return time.time() - self.start_time	
 
 	def run(self):
-		self.pid.setPoint(self.setpoint[1])
-		while self.elapsed<self.setpoint[0]:
-			pid_out = self.pid.update(self.monitor.temperature)
-			if pid_out<0 or pid_out>1:
-				warnings.warn('PID output out of range at ' + str(pid_out) + '!')
-			if pid_out < 0: pid_out = 0
-			if pid_out > 1: pid_out = 1
-			self.regulator.set(pid_out)
-		self.setpoint = self.schedule.pop(0)
-		if len(schedule)>0:
-			self.run()
+		try:
+			self.regulator.ignite()
+			print self.elapsed, self.schedule[-1][0]
+			while self.elapsed < self.schedule[-1][0]:
+				now = time.time()
+				ts = self.elapsed
+				#find epoch
+				for i in range(len(self.schedule)-1):
+					if self.schedule[i][0] < ts < self.schedule[i+1][0]:
+						print "In epoch %d"%i
+						time0, temp0 = self.schedule[i]
+						time1, temp1 = self.schedule[i+1]
+						frac = (ts - time0) / (time1 - time0)
+						setpoint = frac * (temp1 - temp0) + temp0
+						self.pid.setPoint(setpoint)
+
+						if self.simulate:
+							temp = setpoint + random.gauss(-20, 15)
+						else:
+							temp = self.monitor.temperature
+
+						pid_out = self.pid.update(temp)
+						if pid_out < 0: pid_out = 0
+						if pid_out > 1: pid_out = 1
+						self.regulator.set(pid_out)
+
+				time.sleep(self.interval - (time.time()-now))
+		except:
+			import traceback
+			traceback.print_exc()
+
+			print "Started at %f"%self.start_time
+
+		self.regulator.off()
 
 class PID(object):
 	"""
@@ -93,8 +110,9 @@ class PID(object):
 			self.Integrator = self.Integrator_min
 
 		self.I_value = self.Integrator * self.Ki
-
 		PID = self.P_value + self.I_value + self.D_value
+
+		print "PID: %f, %f, %f: %f"%(self.P_value, self.I_value, self.D_value, PID)
 
 		return PID
 

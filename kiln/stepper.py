@@ -4,7 +4,10 @@ import threading
 import warnings
 import Queue
 
-from RPi import GPIO
+try:
+    from RPi import GPIO
+except ImportError:
+    pass
 
 class Stepper(threading.Thread):
     pattern = [
@@ -49,26 +52,29 @@ class Stepper(threading.Thread):
         self.finished.wait()
 
     def run(self):
-        target = 0
-        step, speed, block = self.queue.get()
-        while step is not None:
-            for pin, out in zip(self.pins, self.pattern[self.phase%len(self.pattern)]):
-                GPIO.output(pin, out)
+        try:
+            step, speed, block = self.queue.get()
+            while step is not None:
+                for pin, out in zip(self.pins, self.pattern[self.phase%len(self.pattern)]):
+                    GPIO.output(pin, out)
 
-            if block:
-                self._step(step, speed)
-                self.finished.set()
-            else:
-                self.finished.set()
-                self._step_noblock(step, speed)
+                if block:
+                    self._step(step, speed)
+                    self.finished.set()
+                else:
+                    self.finished.set()
+                    self._step_noblock(step, speed)
 
-            try:
-                step, speed, block = self.queue.get(True, self.timeout)
-            except Queue.Empty:
-                #handle the timeout, turn off all pins
-                for pin in self.pins:
-                    GPIO.output(pin, False)
-                step, speed, block = self.queue.get()
+                try:
+                    step, speed, block = self.queue.get(True, self.timeout)
+                except Queue.Empty:
+                    #handle the timeout, turn off all pins
+                    for pin in self.pins:
+                        GPIO.output(pin, False)
+                    step, speed, block = self.queue.get()
+        except:
+            import traceback
+            traceback.print_exc()
 
         for pin in self.pins:
             GPIO.output(pin, False)
@@ -117,9 +123,21 @@ class Stepper(threading.Thread):
             
         self.phase += step
 
+class StepperSim(object):
+    def __init__(self):
+        self.phase = 0
+
+    def step(self, num, speed=10, block=False):
+        print "Simulated stepping %d steps at %d steps / second"%(num, speed)
+        if block:
+            time.sleep(1)
+
+    def stop(self):
+        print "stopping"
+
 
 class Regulator(object):
-    def __init__(self, maxsteps=4500, minsteps=2500, speed=150, ignite_pin=26):
+    def __init__(self, maxsteps=4500, minsteps=2400, speed=150, ignite_pin=None, simulate=False):
         """Set up a stepper-controlled regulator. Implement some safety measures
         to make sure everything gets shut off at the end
 
@@ -134,8 +152,11 @@ class Regulator(object):
         ignite_pin : int or None
             If not None, turn on this pin during the ignite sequence
         """
-        self.stepper = Stepper()
-        self.stepper.start()
+        if simulate:
+            self.stepper = StepperSim()
+        else:
+            self.stepper = Stepper()
+            self.stepper.start()
         self.current = 0
         self.max = maxsteps
         self.min = minsteps
@@ -146,11 +167,13 @@ class Regulator(object):
             GPIO.setup(ignite_pin, OUT)
         
         def exit():
-            self.off()
+            if self.current != 0:
+                self.off()
             self.stepper.stop()
         atexit.register(exit)
 
-    def ignite(self, start=2800, delay=5):
+    def ignite(self, start=2800, delay=1):
+        print "Ignition..."
         self.stepper.step(start, self.speed, block=True)
         if self.ignite_pin is not None:
             GPIO.output(self.ignite_pin, True)
@@ -159,12 +182,17 @@ class Regulator(object):
             GPIO.output(self.ignite_pin, False)
         self.stepper.step(self.min - start, self.speed)
         self.current = self.min
+        print "Done!"
 
     def off(self, block=True):
+        print "Turning off..."
         self.stepper.step(-self.current, self.speed, block=block)
         self.current = 0
+        print "Done!"
 
     def set(self, value, block=False):
+        if self.current == 0:
+            raise ValueError("System must be ignited to set value")
         if not 0 <= value <= 1:
             raise ValueError("Must give fraction between 0 and 1")
         target = int(value * (self.max - self.min) + self.min)
