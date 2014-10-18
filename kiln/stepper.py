@@ -62,12 +62,12 @@ class Stepper(threading.Thread):
                 self._step_noblock(step, speed)
 
             try:
-                step, speed = self.queue.get(True, self.timeout)
+                step, speed, block = self.queue.get(True, self.timeout)
             except Queue.Empty:
                 #handle the timeout, turn off all pins
                 for pin in self.pins:
                     GPIO.output(pin, False)
-                step, speed = self.queue.get()
+                step, speed, block = self.queue.get()
 
         for pin in self.pins:
             GPIO.output(pin, False)
