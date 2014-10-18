@@ -17,7 +17,7 @@ class KilnController(object):
 		if simulate:
 			self.schedule.insert(0, [0, 15])
 		else:
-			self.schedule.insert(0, [0, self.monitor.temperature])
+			self.schedule.insert(0, [0, 15])
 
 	@property
 	def elapsed(self):
@@ -34,13 +34,12 @@ class KilnController(object):
 				#find epoch
 				for i in range(len(self.schedule)-1):
 					if self.schedule[i][0] < ts < self.schedule[i+1][0]:
-						print "In epoch %d"%i
 						time0, temp0 = self.schedule[i]
 						time1, temp1 = self.schedule[i+1]
 						frac = (ts - time0) / (time1 - time0)
 						setpoint = frac * (temp1 - temp0) + temp0
 						self.pid.setPoint(setpoint)
-
+						print "In epoch %d, elapsed time %f, temperature %f"%(i, ts, setpoint)
 						if self.simulate:
 							temp = setpoint + random.gauss(-20, 15)
 						else:
@@ -49,7 +48,7 @@ class KilnController(object):
 						pid_out = self.pid.update(temp)
 						if pid_out < 0: pid_out = 0
 						if pid_out > 1: pid_out = 1
-						self.regulator.set(pid_out)
+						self.regulator.set(pid_out, block=True)
 
 				time.sleep(self.interval - (time.time()-now))
 		except:

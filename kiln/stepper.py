@@ -16,7 +16,7 @@ class Stepper(threading.Thread):
         [0,0,1,1],
         [1,0,0,1]]
 
-    def __init__(self, pin1=5, pin2=6, pin3=13, pin4=19, timeout=5):
+    def __init__(self, pin1=5, pin2=6, pin3=13, pin4=19, timeout=1):
         self.queue = Queue.Queue()
         self.finished = threading.Event()
         
@@ -137,7 +137,7 @@ class StepperSim(object):
 
 
 class Regulator(object):
-    def __init__(self, maxsteps=4500, minsteps=2400, speed=150, ignite_pin=None, simulate=False):
+    def __init__(self, maxsteps=4500, minsteps=2480, speed=150, ignite_pin=None, simulate=False):
         """Set up a stepper-controlled regulator. Implement some safety measures
         to make sure everything gets shut off at the end
 
@@ -180,7 +180,7 @@ class Regulator(object):
         time.sleep(delay)
         if self.ignite_pin is not None:
             GPIO.output(self.ignite_pin, False)
-        self.stepper.step(self.min - start, self.speed)
+        self.stepper.step(self.min - start, self.speed, block=True)
         self.current = self.min
         print "Done!"
 
