@@ -1,78 +1,134 @@
-var margin = {top: 20, right: 20, bottom: 30, left: 50};
-var width = $("#graph").width() - margin.left - margin.right;
-var height = $("#graph").height() - margin.top - margin.bottom;
+var tempgraph = (function(module) {
+    module.graph_defaults = {
+        margin: {top: 20, right: 20, bottom: 30, left: 50},
+        object: "#graph",
+        show_axes: true,
+    }
+    module.Graph = function(options) {
+        //Options: margin, width, height, object
+        if (options === undefined)
+            options = module.graph_defaults;
 
-var x = d3.time.scale()
-    .range([0, width]);
+        if (options.object !== undefined)
+            this.obj = options.object;
+        else
+            this.obj = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 
-var y = d3.scale.linear()
-    .range([height, 0]);
+        this.width = options.width ? options.width : $(this.obj).width() - options.margin.left - options.margin.right;
+        this.height = options.height ? options.height : $(this.obj).height() - options.margin.top - options.margin.bottom;
+        this.margin = options.margin;
 
-var xAxis = d3.svg.axis()
-    .scale(x)
-    .orient("bottom");
+        this.svg = d3.select(this.obj).append("g").attr("transform", "translate("+options.margin.left+","+options.margin.top+")");
 
-var yAxis = d3.svg.axis()
-    .scale(y)
-    .orient("left");
+        this.x = d3.time.scale().range([0, this.width]);
+        this.y = d3.scale.linear().range([this.height, 0]);
 
-var line = d3.svg.line()
-    .x(function(d) { return x(d.time); })
-    .y(function(d) { return y(d.temp); });
+        if (options.show_axes === undefined || options.show_axes) {
+            this.x_axis = d3.svg.axis().scale(this.x).orient("bottom");
+            this.y_axis = d3.svg.axis().scale(this.y).orient("left");
 
-var svg = d3.select("svg#graph")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-  .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+            //setup axies labels and ticks
+            this.svg.append("g")
+                .attr("class", "x axis")
+                .attr("transform", "translate(0," + this.height + ")")
+                .call(this.x_axis);
 
-var data = [{"time":1413571601.55382, "temp":14.4}, {"time":1413571606.291054, "temp":14.6}, {"time":1413571629.841126, "temp":15.8}];
-data.forEach(function(d) {
-  d.time = new Date(d.time*1000.);
-  d.temp = +d.temp;
+            this.svg.append("g")
+                    .attr("class", "y axis")
+                    .call(this.y_axis)
+                .append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", 6)
+                    .attr("dy", ".71em")
+                    .style("text-anchor", "end")
+                    .text("Temperature (°C)");
+
+        }
+
+        this.lines = [];
+    };
+    module.Graph.prototype.plot = function(data, marker) {
+        var line = d3.svg.line()
+            .x(function(d) { return this.x(d.time); }.bind(this))
+            .y(function(d) { return this.y(d.temp); }.bind(this));
+        this.svg.append("path")
+            .datum(data)
+            .attr("class", "line")
+            .attr("d", line);
+        if (marker !== undefined && marker) {
+            var marker = this.svg.selectAll(".dot").data(data)
+                .enter().append("circle")
+                    .attr("class", "dot")
+                    .attr("r", 5)
+                    .attr("cx", function(d) { return this.x(d.time); }.bind(this))
+                    .attr("cy", function(d) { return this.y(d.temp); }.bind(this));
+        }
+        this.lines.push({line:line, data:data, marker:marker});
+
+        this.x.domain(d3.extent(data, function(d) { return d.time; }));
+        this.y.domain(d3.extent(data, function(d) { return d.temp; }));
+        this.draw();
+        return line;
+    }
+    module.Graph.prototype.draw = function() {
+        this.svg.select("g.x.axis").call(this.x_axis);
+        this.svg.select("g.y.axis").call(this.y_axis);
+        var line, data, marker;
+        for (var i = 0; i < this.lines.length; i++) {
+            line = this.lines[i].line;
+            data = this.lines[i].data;
+            marker = this.lines[i].marker;
+            if (marker !== undefined) {
+                this.svg.selectAll(".dot").data(data)
+                    .attr("cx", function(d) { return this.x(d.time)}.bind(this))
+                    .attr("cy", function(d) { return this.y(d.temp)}.bind(this));
+            }
+            this.svg.select("path.line").attr("d", line);
+        }
+    }
+    module.Graph.prototype.resize = function() {
+        this.svg
+            .attr("width", width + margin.left + margin.right)
+            .attr("height", height + margin.top + margin.bottom)
+        this.draw();
+    }
+
+    module.Graph.prototype.update = function(line, data) {
+        for (var i = 0; i < this.lines.length; i++) {
+            if (this.lines[i].line === line) {
+                this.svg.select("path.line").datum(data).attr("d", line);
+            }
+        }
+        this.draw();
+    }
+    module.Graph.prototype.xlim = function(min, max) {
+        this.x.domain([min, max]);
+    }
+
+    return module;
+}(tempgraph || {}));
+
+var data = d3.tsv("data.txt", function(error, data) {
+    data.forEach(function(d) {
+        d.time = new Date(d.time*1000.);
+        d.temp = +d.temp;
+    });
+
+    graph = new tempgraph.Graph()
+    line = graph.plot(data.slice(0, 400), false);
 });
 
-x.domain(d3.extent(data, function(d) { return d.time; }));
-y.domain(d3.extent(data, function(d) { return d.temp; }));
-
-svg.append("g")
-    .attr("class", "x axis")
-    .attr("transform", "translate(0," + height + ")")
-    .call(xAxis);
-
-svg.append("g")
-    .attr("class", "y axis")
-    .call(yAxis)
-  .append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("y", 6)
-    .attr("dy", ".71em")
-    .style("text-anchor", "end")
-    .text("Temperature (°C)");
-
-svg.append("path")
-    .datum(data)
-    .attr("class", "line")
-    .attr("d", line);
-
-svg.selectAll(".dot")
-      .data(data)
-    .enter().append("circle")
-      .attr("class", "dot")
-      .attr("r", 3.5)
-      .attr("cx", function(d) { return x(d.time); })
-      .attr("cy", function(d) { return y(d.temp); });
-
-function draw() {
-  svg.select("g.x.axis").call(xAxis);
-  svg.select("g.y.axis").call(yAxis);
-  svg.select("path.line").attr("d", line);
-  svg.selectAll(".dot").data(data)
-    .attr("cx", function(d) {return x(d.time);})
-    .attr("cy", function(d) {return y(d.temp);});
-}
 
 function update() {
-  x.domain([new Date(data[0].time.getTime() - 5000), new Date(data[2].time.getTime() + 5000)]);
-  draw();
+    d3.tsv("data2.txt", function(error, data) {
+        data.forEach(function(d) {
+            d.time = new Date(d.time*1000.);
+            d.temp = +d.temp;
+        });
+
+        var lim = d3.extent(data, function(d){return d.time;});
+        graph.xlim(lim[0], lim[1]);
+        graph.update(line, data);
+        console.log("done!");
+    })
 }

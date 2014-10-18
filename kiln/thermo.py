@@ -19,9 +19,10 @@ def temp_to_cone(temp):
     return "13+"
 
 class Monitor(threading.Thread):
-    def __init__(self, name="3b-000000182b57"):
+    def __init__(self, name="3b-000000182b57", callback=None):
         self.device = "/sys/bus/w1/devices/%s/w1_slave"%name
         self.history = deque(maxlen=1048576)
+        self.callback = callback
 
         try:
             from Adafruit_alphanumeric import AlphaScroller
@@ -60,14 +61,16 @@ class Monitor(threading.Thread):
     def run(self):
         while self.running:
             temp = self._read_temp()
-            fahr = temp * 9. / 5. + 32.
-            now = datetime.datetime.now()
+            now = time.time()
             self.history.append((now, temp))
+            if self.callback is not None:
+                self.callback(now, temp)
 
             if self.display is not None:
                 if temp > 50:
                     if not self.display.shown:
                         self.display.show()
+                    fahr = temp * 9. / 5. + 32.
                     text = list('%0.0f'%temp) + ['degree'] + list('C  %0.0f'%fahr)+['degree'] + list("F")
                     if 600 <= temp:
                         text += [' ', ' ', 'cone']+list("%0.1f"%temp_to_cone(temp))
@@ -78,8 +81,3 @@ class Monitor(threading.Thread):
 if __name__ == "__main__":
     mon = Monitor()
     mon.start()
-    try:
-        while mon.isAlive():
-            mon.join(1)
-    except KeyboardInterrupt:
-        mon.stop()
