@@ -59,12 +59,16 @@ class Monitor(threading.Thread):
         return self.history[-1][1]
 
     def run(self):
+        with open("/home/pi/data.txt", "w") as f:
+            f.write("time\ttemp\n")
         while self.running:
             temp = self._read_temp()
             now = time.time()
             self.history.append((now, temp))
             if self.callback is not None:
                 self.callback(now, temp)
+            with open("/home/pi/data.txt", "a") as f:
+                f.write("%f\t%f\n"%(now, temp))
 
             if self.display is not None:
                 if temp > 50:
