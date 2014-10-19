@@ -4,7 +4,7 @@ import random
 import warnings
 
 class KilnController(object):
-	def __init__(self, schedule, monitor, interval=5, start_time=None, Kp=.01, Ki=.001, Kd=.001, simulate=True):
+	def __init__(self, schedule, monitor, interval=5, start_time=None, Kp=.025, Ki=.01, Kd=.001, simulate=True):
 		self.schedule = schedule
 		self.monitor = monitor
 		self.interval = interval

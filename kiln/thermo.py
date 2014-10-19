@@ -59,8 +59,8 @@ class Monitor(threading.Thread):
         return self.history[-1][1]
 
     def run(self):
-        with open("/home/pi/data.txt", "w") as f:
-            f.write("time\ttemp\n")
+#        with open("/home/pi/data.txt", "w") as f:
+#            f.write("time\ttemp\n")
         while self.running:
             temp = self._read_temp()
             now = time.time()
