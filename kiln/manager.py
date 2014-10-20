@@ -3,6 +3,13 @@ import time
 import random
 import warnings
 
+class StateMachine(object):
+	def __init__(self):
+		import stepper
+		import thermo
+		self.monitor = thermo.Monitor()
+		self.regulator = stepper.Regulator()
+
 class KilnController(object):
 	def __init__(self, schedule, monitor, interval=5, start_time=None, Kp=.025, Ki=.01, Kd=.001, simulate=True):
 		self.schedule = schedule

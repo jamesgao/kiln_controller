@@ -47,14 +47,14 @@ class WebApp(object):
 
 if __name__ == "__main__":
     try:
-	    import thermo
-	    monitor = thermo.Monitor()
+        import thermo
+        monitor = thermo.Monitor()
 
-	    app = WebApp(monitor)
-	    def send_temp(time, temp):
-		app.send(dict(time=time, temp=temp))
-	    monitor.callback = send_temp
-	    monitor.start()
-	    app.run()
+        app = WebApp(monitor)
+        def send_temp(time, temp):
+            app.send(dict(time=time, temp=temp))
+        monitor.callback = send_temp
+        monitor.start()
+        app.run()
     except KeyboardInterrupt:
         monitor.stop()
