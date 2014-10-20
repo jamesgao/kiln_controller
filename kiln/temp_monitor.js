@@ -33,13 +33,14 @@ var tempgraph = (function(module) {
 			if (now > lims[1]) {
 				var start = new Date(now.getTime() - lims[1].getTime() + lims[0].getTime());
 				this.graph.x.domain([start, now]);
-				//If incoming sample is higher or lower than the ylims, expand that as well
-				var ylims = this.graph.y.domain(), range = 2*(ylims[1] - ylims[0]);
-				if (temp >= ylims[1]) {
-					this.graph.y.domain([ylims[0], ylims[0]+range]);
-				} else if (temp <= ylims[0]) {
-					this.graph.y.domain([ylims[1]-range, ylims[1]]);
-				}
+			}
+
+			//If incoming sample is higher or lower than the ylims, expand that as well
+			var ylims = this.graph.y.domain(), range = 2*(ylims[1] - ylims[0]);
+			if (temp >= ylims[1]) {
+				this.graph.y.domain([ylims[0], ylims[0]+range]);
+			} else if (temp <= ylims[0]) {
+				this.graph.y.domain([ylims[1]-range, ylims[1]]);
 			}
 			this.graph.update("temperature", this._mapped);
 		}
