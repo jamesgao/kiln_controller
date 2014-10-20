@@ -29,8 +29,8 @@ class WebApp(object):
     def __init__(self, monitor, port=8888):
         self.handlers = [
             (r"/ws/", ClientSocket, dict(parent=self)),
+            (r"/data.json", DataRequest, dict(monitor=monitor)),
             (r"/(.*)", tornado.web.StaticFileHandler, dict(path=cwd)),
-            (r"^/data.txt$", DataRequest, dict(monitor=monitor))
         ]
         self.sockets = []
         self.port = port
@@ -38,7 +38,7 @@ class WebApp(object):
     def send(self, data):
         jsondat = json.dumps(data)
         for sock in self.sockets:
-            socket.write_message(jsondat)
+            sock.write_message(jsondat)
 
     def run(self):
         self.app = tornado.web.Application(self.handlers, gzip=True)
@@ -46,12 +46,15 @@ class WebApp(object):
         tornado.ioloop.IOLoop.instance().start()
 
 if __name__ == "__main__":
-    import thermo
-    monitor = thermo.Monitor()
+    try:
+	    import thermo
+	    monitor = thermo.Monitor()
 
-    app = WebApp(monitor)
-    def send_temp(time, temp):
-        app.send(dict(time=time, temp=temp))
-    monitor.callback = send_temp
-    monitor.start()
-    app.run()
+	    app = WebApp(monitor)
+	    def send_temp(time, temp):
+		app.send(dict(time=time, temp=temp))
+	    monitor.callback = send_temp
+	    monitor.start()
+	    app.run()
+    except KeyboardInterrupt:
+        monitor.stop()

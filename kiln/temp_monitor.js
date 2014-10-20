@@ -83,8 +83,8 @@ var tempgraph = (function(module) {
 		sock.onmessage = function(event) {
 			var data = JSON.parse(event.data);
 			this.update_temp(data);
-		}
-		*/
+		}.bind(this);
+	
 		$("#temp_scale_C").click(function() { this.setScale("C");}.bind(this));
 		$("#temp_scale_F").click(function() { this.setScale("F");}.bind(this));
 		//$("#temp_scale_C").click(function() { this.setScale("C");}.bind(this));
@@ -102,7 +102,7 @@ var tempgraph = (function(module) {
     return module;
 }(tempgraph || {}));
 
-d3.tsv("data.txt", function(error, data) {
+d3.json("data.json", function(error, data) {
     var newdata = [], d;
     for (var i = 0; i < data.length; i+=4) {
         d = data[i];
