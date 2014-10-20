@@ -78,13 +78,11 @@ var tempgraph = (function(module) {
 		return {x:d.x, y:this.scalefunc(d.y)};
 	}
 	module.Monitor.prototype._bindUI = function() {
-		/*
-		var sock = new WebSocket("ws://localhost/socket/", "protocolOne");
-
+		var sock = new WebSocket("ws://"+window.location.hostname+":"+window.location.port+"/ws/", "protocolOne");
 
 		sock.onmessage = function(event) {
 			var data = JSON.parse(event.data);
-			this.update(data);
+			this.update_temp(data);
 		}
 		*/
 		$("#temp_scale_C").click(function() { this.setScale("C");}.bind(this));
