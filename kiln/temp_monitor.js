@@ -59,8 +59,7 @@ var tempgraph = (function(module) {
 	module.Monitor.prototype.last = function() {
 		return this.temperature[this.temperature.length-1];
 	}
-
-
+	
 	module.Monitor.prototype.setScale = function(scale) {
 		$("a#temp_scale_C").parent().removeClass("active");
 		$("a#temp_scale_F").parent().removeClass("active");
@@ -121,7 +120,7 @@ var tempgraph = (function(module) {
     return module;
 }(tempgraph || {}));
 
-d3.json("data.json", function(error, data) {
+d3.json("data2.json", function(error, data) {
     monitor = new tempgraph.Monitor(data);
     
 });

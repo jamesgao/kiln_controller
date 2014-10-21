@@ -3,7 +3,7 @@ import time
 import datetime
 import logging
 import threading
-from collections import deque
+from collections import deque, namedtuple
 
 logger = logging.getLogger("thermo")
 
@@ -18,8 +18,13 @@ def temp_to_cone(temp):
             return names[i]+'.%d'%int(frac*10)
     return "13+"
 
+tempsample = namedtuple("tempsample", ['time', 'temp'])
+
 class Monitor(threading.Thread):
     def __init__(self, name="3b-000000182b57", callback=None):
+        super(Monitor, self).__init__()
+        self.daemon = True
+
         self.device = "/sys/bus/w1/devices/%s/w1_slave"%name
         self.history = deque(maxlen=1048576)
         self.callback = callback
@@ -33,8 +38,8 @@ class Monitor(threading.Thread):
             logger.info("Could not start AlphaScroller")
             self.display = None
 
-        super(Monitor, self).__init__()
         self.running = True
+        self.start()
 
     def _read_temp(self):
         with open(self.device, 'r') as f:
@@ -59,16 +64,12 @@ class Monitor(threading.Thread):
         return self.history[-1][1]
 
     def run(self):
-#        with open("/home/pi/data.txt", "w") as f:
-#            f.write("time\ttemp\n")
         while self.running:
             temp = self._read_temp()
             now = time.time()
-            self.history.append((now, temp))
+            self.history.append(tempsample(now, temp))
             if self.callback is not None:
                 self.callback(now, temp)
-            with open("/home/pi/data.txt", "a") as f:
-                f.write("%f\t%f\n"%(now, temp))
 
             if self.display is not None:
                 if temp > 50:
@@ -84,4 +85,4 @@ class Monitor(threading.Thread):
 
 if __name__ == "__main__":
     mon = Monitor()
-    mon.start()
+    mon.join()

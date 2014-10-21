@@ -1,70 +1,69 @@
 import stepper
 import time
 import random
+import thermo
 import warnings
+import threading
+import traceback
 
-class StateMachine(object):
+class Manager(threading.Thread):
 	def __init__(self):
-		import stepper
-		import thermo
-		self.monitor = thermo.Monitor()
-		self.regulator = stepper.Regulator()
+		"""
+		Create a Manager instance that manages the electronics for the kiln.
+		Fundamentally, this just means that four components need to be connected:
 
-class KilnController(object):
-	def __init__(self, schedule, monitor, interval=5, start_time=None, Kp=.025, Ki=.01, Kd=.001, simulate=True):
+		The thermocouple, the regulator stepper, and PID controller, and the webserver
+		"""
+		self._send = None
+		self.monitor = thermo.Monitor(self._send_state)
+		self.regulator = stepper.Regulator(self._regulator_error)
+
+		self.profile = None
+
+	def register(self, webapp):
+		self._send = webapp.send
+
+	def _send_state(self, time, temp):
+		profile = None
+		if self.profile is not None:
+			profile.get_state()
+
+		state = dict(
+			output=self.regulator.output
+			profile=profile,
+			time=time,
+			temp=temp,
+		)
+		if self._send is not None:
+			self._send(state)
+
+	def _regulator_error(self, msg):
+		if self._send is not None:
+			self._send(dict())
+
+
+
+class Profile(object):
+	def __init__(self, schedule, monitor, regulator, interval=5, start_time=None, Kp=.025, Ki=.01, Kd=.005):
 		self.schedule = schedule
 		self.monitor = monitor
 		self.interval = interval
 		self.start_time = start_time
 		if start_time is None:
 			self.start_time = time.time()
-		self.regulator = stepper.Regulator(simulate=simulate)
+		self.regulator = regulator
 		self.pid = PID(Kp, Ki, Kd)
-		self.simulate = simulate
-		if simulate:
-			self.schedule.insert(0, [0, 15])
-		else:
-			self.schedule.insert(0, [0, 15])
+		self.running = True
 
-	@property
-	def elapsed(self):
-		''' Returns the elapsed time from start in seconds'''
-		return time.time() - self.start_time	
+	def get_state(self):
+		state = dict(
+			start_time=self.start_time,
+			elapsed=self.elapsed,
+		)
+		return state
 
-	def run(self):
-		try:
-			self.regulator.ignite()
-			print self.elapsed, self.schedule[-1][0]
-			while self.elapsed < self.schedule[-1][0]:
-				now = time.time()
-				ts = self.elapsed
-				#find epoch
-				for i in range(len(self.schedule)-1):
-					if self.schedule[i][0] < ts < self.schedule[i+1][0]:
-						time0, temp0 = self.schedule[i]
-						time1, temp1 = self.schedule[i+1]
-						frac = (ts - time0) / (time1 - time0)
-						setpoint = frac * (temp1 - temp0) + temp0
-						self.pid.setPoint(setpoint)
-						print "In epoch %d, elapsed time %f, temperature %f"%(i, ts, setpoint)
-						if self.simulate:
-							temp = setpoint + random.gauss(-20, 15)
-						else:
-							temp = self.monitor.temperature
-
-						pid_out = self.pid.update(temp)
-						if pid_out < 0: pid_out = 0
-						if pid_out > 1: pid_out = 1
-						self.regulator.set(pid_out, block=True)
-
-				time.sleep(self.interval - (time.time()-now))
-		except:
-			import traceback
-			traceback.print_exc()
-
-			print "Started at %f"%self.start_time
-
-		self.regulator.off()
+	def stop(self):
+		self.running = False
 
 class PID(object):
 	"""

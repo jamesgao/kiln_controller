@@ -22,8 +22,16 @@ class DataRequest(tornado.web.RequestHandler):
         self.monitor = monitor
 
     def get(self):
-        output = [dict(time=ts[0], temp=ts[1]) for ts in self.monitor.history]
+        data = self.monitor.history
+        output = [dict(time=ts[0], temp=ts[1]) for ts in ]
         self.write(json.dumps(output))
+
+class DoAction(tornado.web.RequestHandler):
+    def initialize(self, controller):
+        self.controller = controller
+
+    def get(self, action):
+        pass
 
 class WebApp(object):
     def __init__(self, monitor, port=8888):
