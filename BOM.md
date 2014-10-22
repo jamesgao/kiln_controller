@@ -13,5 +13,7 @@
 |28BYJ-48 stepper|[Link](http://www.ebay.com/itm/2pcs-DC-5V-Stepper-Motor-ULN2003-Driver-Test-Module-Board-28BYJ-48-for-Arduino-/221347325924?pt=LH_DefaultDomain_0&hash=item33895427e4)|$5.00|
 |Silicon Nitride igniter|[Link](https://www.sparkfun.com/products/11694)|$19.95|
 |Flame Sensor|[Link](http://www.ebay.com/itm/Wavelength-760nm-1100nm-LM393-IR-Flame-Fire-Sensor-Module-Board-For-Arduino-/190938428869?pt=LH_DefaultDomain_0&hash=item2c74d135c5)|$1.50|
+|12V 6A power supply|[Link](http://www.amazon.com/Adapter-Power-Supply-LCD-Monitor/dp/B003TUMDWG/ref=sr_1_2?ie=UTF8&qid=1413941132&sr=8-2&keywords=12V+power+supply)|$6.50|
 
+*Total: $199.81*
 
