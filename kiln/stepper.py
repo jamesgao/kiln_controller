@@ -5,7 +5,7 @@ import warnings
 import Queue
 import logging
 
-logger = logging.get_logger("Stepper")
+logger = logging.getLogger("kiln.Stepper")
 
 try:
     from RPi import GPIO
@@ -175,6 +175,9 @@ class Regulator(threading.Thread):
         self.ignite_pin = ignite_pin
         if ignite_pin is not None:
             GPIO.setup(ignite_pin, OUT)
+        self.flame_pin = flame_pin
+        if flame_pin is not None:
+            GPIO.setup(flame_pin, IN)
         
         def exit():
             if self.current != 0:
@@ -216,3 +219,8 @@ class Regulator(threading.Thread):
     @property
     def output(self):
         return (self.current - self.min) / (self.max - self.min)
+
+    def run(self):
+        """Check the status of the flame sensor"""
+        #since the flame sensor does not yet exist, we'll save this for later
+        pass

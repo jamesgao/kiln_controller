@@ -18,26 +18,27 @@ class ClientSocket(websocket.WebSocketHandler):
         self.parent.sockets.remove(self)
 
 class DataRequest(tornado.web.RequestHandler):
-    def initialize(self, monitor):
-        self.monitor = monitor
+    def initialize(self, manager):
+        self.manager = manager
 
     def get(self):
-        data = self.monitor.history
-        output = [dict(time=ts[0], temp=ts[1]) for ts in ]
+        data = self.manager.thermocouple.history
+        output = [dict(time=ts.time, temp=ts.temp) for ts in data]
         self.write(json.dumps(output))
 
 class DoAction(tornado.web.RequestHandler):
-    def initialize(self, controller):
-        self.controller = controller
+    def initialize(self, manager):
+        self.manager = manager
 
     def get(self, action):
         pass
 
 class WebApp(object):
-    def __init__(self, monitor, port=8888):
+    def __init__(self, manager, port=8888):
         self.handlers = [
             (r"/ws/", ClientSocket, dict(parent=self)),
-            (r"/data.json", DataRequest, dict(monitor=monitor)),
+            (r"/temperature.json", DataRequest, dict(manager=manager)),
+            (r"/do/(.*)", DoAction, dict(manager=manager)),
             (r"/(.*)", tornado.web.StaticFileHandler, dict(path=cwd)),
         ]
         self.sockets = []
@@ -55,14 +56,12 @@ class WebApp(object):
 
 if __name__ == "__main__":
     try:
-        import thermo
-        monitor = thermo.Monitor()
+        import manager
+        kiln = manager.Manager()
+        app = WebApp(kiln)
+        kiln.register(app)
+        kiln.start()
 
-        app = WebApp(monitor)
-        def send_temp(time, temp):
-            app.send(dict(time=time, temp=temp))
-        monitor.callback = send_temp
-        monitor.start()
         app.run()
     except KeyboardInterrupt:
-        monitor.stop()
+        kiln.stop()

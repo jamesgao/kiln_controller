@@ -5,23 +5,37 @@ import thermo
 import warnings
 import threading
 import traceback
+import logging
+import states
+
+logger = logging.getLogger("kiln.manager")
 
 class Manager(threading.Thread):
-	def __init__(self):
+	def __init__(self, start=states.Idle):
 		"""
-		Create a Manager instance that manages the electronics for the kiln.
-		Fundamentally, this just means that four components need to be connected:
-
-		The thermocouple, the regulator stepper, and PID controller, and the webserver
+		Implement a state machine that cycles through States
 		"""
+		super(Manager, self).__init__()
 		self._send = None
-		self.monitor = thermo.Monitor(self._send_state)
-		self.regulator = stepper.Regulator(self._regulator_error)
+		self.thermocouple = thermo.Monitor(self._send_state)
+		self.regulator = stepper.Regulator()
 
 		self.profile = None
 
+		self.state = start(self)
+		self.state_change = threading.Event()
+
+		self.running = True
+		self.start()
+
 	def register(self, webapp):
 		self._send = webapp.send
+
+	def notify(self, data):
+		if self._send is not None:
+			self._send(data)
+		else:
+			logging.warn("No notifier set, ignoring message: %s"%data)
 
 	def _send_state(self, time, temp):
 		profile = None
@@ -29,7 +43,7 @@ class Manager(threading.Thread):
 			profile.get_state()
 
 		state = dict(
-			output=self.regulator.output
+			output=self.regulator.output,
 			profile=profile,
 			time=time,
 			temp=temp,
@@ -37,121 +51,37 @@ class Manager(threading.Thread):
 		if self._send is not None:
 			self._send(state)
 
-	def _regulator_error(self, msg):
-		if self._send is not None:
-			self._send(dict())
+	def __getattr__(self, name):
+		"""Mutates the manager to return State actions
+		If the requested attribute is a function, wrap the function
+		such that returned objects which are States indicate a state change
+		"""
+		attr = getattr(self.state, name)
+		if hasattr(attr, "__call__"):
+			def func(*args, **kwargs):
+				self._change_state(attr(*args, **kwargs))
+			return func
 
+		return attr
 
+	def _change_state(self, output):
+		if isinstance(output, states.State) :
+			self.state = output()
+			self.state_change.set()
+			self.notify(dict(type="change", state=newstate.__name__))
+		elif isinstance(output, tuple) and isinstance(output[0], states.State):
+			newstate, kwargs = output
+			self.state = output(**kwargs)
+			self.notify(dict(type="change", state=newstate.__name__))
+		elif isinstance(output, dict) and "type" in dict:
+			self.notify(output)
+		elif output is not None:
+			logger.warn("Unknown state output: %s"%output)
 
-class Profile(object):
-	def __init__(self, schedule, monitor, regulator, interval=5, start_time=None, Kp=.025, Ki=.01, Kd=.005):
-		self.schedule = schedule
-		self.monitor = monitor
-		self.interval = interval
-		self.start_time = start_time
-		if start_time is None:
-			self.start_time = time.time()
-		self.regulator = regulator
-		self.pid = PID(Kp, Ki, Kd)
-		self.running = True
-
-	def get_state(self):
-		state = dict(
-			start_time=self.start_time,
-			elapsed=self.elapsed,
-		)
-		return state
-
+	def run(self):
+		while running:
+			self._change_state(self.state.run())
+	
 	def stop(self):
 		self.running = False
-
-class PID(object):
-	"""
-	Discrete PID control
-	#The recipe gives simple implementation of a Discrete Proportional-Integral-Derivative (PID) controller. PID controller gives output value for error between desired reference input and measurement feedback to minimize error value.
-	#More information: http://en.wikipedia.org/wiki/PID_controller
-	#
-	#cnr437@gmail.com
-	#
-	#######	Example	#########
-	#
-	#p=PID(3.0,0.4,1.2)
-	#p.setPoint(5.0)
-	#while True:
-	#     pid = p.update(measurement_value)
-	#
-	#
-	"""
-
-	def __init__(self, P=2.0, I=0.0, D=1.0, Derivator=0, Integrator=0, Integrator_max=500, Integrator_min=-500):
-
-		self.Kp=P
-		self.Ki=I
-		self.Kd=D
-		self.Derivator=Derivator
-		self.Integrator=Integrator
-		self.Integrator_max=Integrator_max
-		self.Integrator_min=Integrator_min
-
-		self.set_point=0.0
-		self.error=0.0
-
-	def update(self,current_value):
-		"""
-		Calculate PID output value for given reference input and feedback
-		"""
-
-		self.error = self.set_point - current_value
-
-		self.P_value = self.Kp * self.error
-		self.D_value = self.Kd * ( self.error - self.Derivator)
-		self.Derivator = self.error
-
-		self.Integrator = self.Integrator + self.error
-
-		if self.Integrator > self.Integrator_max:
-			self.Integrator = self.Integrator_max
-		elif self.Integrator < self.Integrator_min:
-			self.Integrator = self.Integrator_min
-
-		self.I_value = self.Integrator * self.Ki
-		PID = self.P_value + self.I_value + self.D_value
-
-		print "PID: %f, %f, %f: %f"%(self.P_value, self.I_value, self.D_value, PID)
-
-		return PID
-
-	def setPoint(self,set_point):
-		"""
-		Initilize the setpoint of PID
-		"""
-		self.set_point = set_point
-		self.Integrator=0
-		self.Derivator=0
-
-	def setIntegrator(self, Integrator):
-		self.Integrator = Integrator
-
-	def setDerivator(self, Derivator):
-		self.Derivator = Derivator
-
-	def setKp(self,P):
-		self.Kp=P
-
-	def setKi(self,I):
-		self.Ki=I
-
-	def setKd(self,D):
-		self.Kd=D
-
-	def getPoint(self):
-		return self.set_point
-
-	def getError(self):
-		return self.error
-
-	def getIntegrator(self):
-		return self.Integrator
-
-	def getDerivator(self):
-		return self.Derivator
+		self.state_change.set()
