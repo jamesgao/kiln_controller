@@ -189,7 +189,7 @@ class Regulator(threading.Thread):
         if self.current != 0:
             raise ValueError("Must be off to ignite")
 
-        logger.log("Ignition start")
+        logger.info("Ignition start")
         self.stepper.step(start, self.speed, block=True)
         if self.ignite_pin is not None:
             GPIO.output(self.ignite_pin, True)
@@ -198,10 +198,10 @@ class Regulator(threading.Thread):
             GPIO.output(self.ignite_pin, False)
         self.stepper.step(self.min - start, self.speed, block=True)
         self.current = self.min
-        logger.log("Ignition complete")
+        logger.info("Ignition complete")
 
     def off(self, block=True):
-        logger.log("Shutting off gas")
+        logger.info("Shutting off gas")
         self.stepper.step(-self.current, self.speed, block=block)
         self.current = 0
 
@@ -218,7 +218,10 @@ class Regulator(threading.Thread):
 
     @property
     def output(self):
-        return (self.current - self.min) / (self.max - self.min)
+        out = (self.current - self.min) / float(self.max - self.min)
+        if out < 0:
+            return -1
+        return out
 
     def run(self):
         """Check the status of the flame sensor"""

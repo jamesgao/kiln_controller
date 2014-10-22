@@ -17,9 +17,11 @@ var tempgraph = (function(module) {
 		var now = new Date(data.time*1000.);
 		var temp = this.scalefunc(data.temp);
 
+		var hourstr = now.getHours() % 12;
+		hourstr = hourstr == 0 ? 12 : houstr;
 		var minstr = now.getMinutes();
 		minstr = minstr.length < 2 ? "0"+minstr : minstr;
-		var nowstr = now.getHours() % 12 + ":" + minstr + (now.getHours() > 12 ? " pm" : " am");
+		var nowstr = hourstr + ":" + minstr + (now.getHours() >= 12 ? " pm" : " am");
 		$("#current_time").text(nowstr);
 		$("#current_temp").text(this.temp_prefix+temp+this.temp_suffix);
 
@@ -93,13 +95,18 @@ var tempgraph = (function(module) {
 	module.Monitor.prototype._map_temp = function(d) {
 		return {x:new Date(d.time*1000), y:this.scalefunc(d.temp)};
 	}
+
+	module.Monitor.prototype.setState = function(name) {
+		
+	}
 	module.Monitor.prototype._bindUI = function() {
 		try {
 			var sock = new WebSocket("ws://"+window.location.hostname+":"+window.location.port+"/ws/", "protocolOne");
 
 			sock.onmessage = function(event) {
 				var data = JSON.parse(event.data);
-				this.update_temp(data);
+				if (data.type == "temperature")
+					this.update_temp(data);
 			}.bind(this);
 		} catch (e) {}
 	
@@ -120,7 +127,7 @@ var tempgraph = (function(module) {
     return module;
 }(tempgraph || {}));
 
-d3.json("data2.json", function(error, data) {
+d3.json("temperature.json", function(error, data) {
     monitor = new tempgraph.Monitor(data);
     
 });

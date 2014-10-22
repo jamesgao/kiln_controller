@@ -20,26 +20,11 @@ def temp_to_cone(temp):
 
 tempsample = namedtuple("tempsample", ['time', 'temp'])
 
-class Monitor(threading.Thread):
-    def __init__(self, name="3b-000000182b57", callback=None):
-        super(Monitor, self).__init__()
-        self.daemon = True
-
+class MAX31850(object):
+    def __init__(self, name="3b-000000182b57", smooth_window=4):
         self.device = "/sys/bus/w1/devices/%s/w1_slave"%name
-        self.history = deque(maxlen=1048576)
-        self.callback = callback
-
-        try:
-            from Adafruit_alphanumeric import AlphaScroller
-            self.display = AlphaScroller(interval=.4)
-            self.display.start()
-            self.display.hide()
-        except ImportError:
-            logger.info("Could not start AlphaScroller")
-            self.display = None
-
-        self.running = True
-        self.start()
+        self.temps = deque(maxlen=smooth_window)
+        self.last = None
 
     def _read_temp(self):
         with open(self.device, 'r') as f:
@@ -54,35 +39,62 @@ class Monitor(threading.Thread):
         if match is not None:
             return float(match.group(1)) / 1000.0
 
-    def stop(self):
-        self.running = False
-        if self.display is not None:
-            self.display.stop()
+    def get(self):
+        """Blocking call to retrieve latest temperature sample"""
+        temp = self._read_temp()
+        self.last = time.time()
+        self.history.append(temp)
+        return self.temperature
 
     @property
     def temperature(self):
-        return self.history[-1][1]
+        if self.last is None or time.time() - self.last > 5:
+            return self.get()
+
+        return tempsample(self.last, sum(self.history) / float(len(self.history)))
+
+class Simulate(object):
+    def __init__(self, regulator):
+        self.regulator = regulator
+
+    def get(self):
+        time.sleep(.8)
+        return self.temperature
+
+    @property
+    def temperature(self):
+        return tempsample(time.time(), self.regulator.output * 1000. + 15)
+
+class Monitor(threading.Thread):
+    def __init__(self, cls=MAX31850, **kwargs):
+        self.therm = cls(**kwargs)
+        self.running = True
+        
+        from Adafruit_alphanumeric import AlphaScroller
+        self.display = AlphaScroller(interval=.4)
+        self.display.start()
+        self.display.hide()
 
     def run(self):
         while self.running:
-            temp = self._read_temp()
-            now = time.time()
-            self.history.append(tempsample(now, temp))
-            if self.callback is not None:
-                self.callback(now, temp)
+            _, temp = self.therm.get()
 
-            if self.display is not None:
-                if temp > 50:
-                    if not self.display.shown:
-                        self.display.show()
-                    fahr = temp * 9. / 5. + 32.
-                    text = list('%0.0f'%temp) + ['degree'] + list('C  %0.0f'%fahr)+['degree'] + list("F")
-                    if 600 <= temp:
-                        text += [' ', ' ', 'cone']+list(temp_to_cone(temp))
-                    self.display.set_text(text, reset=False)
-                elif self.display.shown:
-                    self.display.hide()
+            if temp > 50:
+                if not self.display.shown:
+                    self.display.show()
+                fahr = temp * 9. / 5. + 32.
+                text = list('%0.0f'%temp) + ['degree'] + list('C  %0.0f'%fahr)+['degree'] + list("F")
+                if 600 <= temp:
+                    text += [' ', ' ', 'cone']+list(temp_to_cone(temp))
+                self.display.set_text(text, reset=False)
+            elif self.display.shown:
+                self.display.hide()
+
+    def stop(self):
+        self.running = False
+        self.display.stop()
+
 
 if __name__ == "__main__":
-    mon = Monitor()
-    mon.join()
+    monitor = Monitor()
+    monitor.start()

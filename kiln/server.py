@@ -1,6 +1,7 @@
 import time
 import os
 import json
+import traceback
 import tornado.ioloop
 import tornado.web
 from tornado import websocket
@@ -22,7 +23,7 @@ class DataRequest(tornado.web.RequestHandler):
         self.manager = manager
 
     def get(self):
-        data = self.manager.thermocouple.history
+        data = list(self.manager.history)
         output = [dict(time=ts.time, temp=ts.temp) for ts in data]
         self.write(json.dumps(output))
 
@@ -31,7 +32,20 @@ class DoAction(tornado.web.RequestHandler):
         self.manager = manager
 
     def get(self, action):
-        pass
+        try:
+            func = getattr(self.manager, action)
+            func()
+            self.write(json.dumps(dict(type="success")))
+        except:
+            self.write(json.dumps(dict(type="error", msg=traceback.format_exc())))
+
+    def post(self, action):
+        try:
+            func = getattr(self.manager, action)
+            func()
+            self.write(json.dumps(dict(type="success")))
+        except:
+            self.write(json.dumps(dict(type="error", msg=traceback.format_exc())))        
 
 class WebApp(object):
     def __init__(self, manager, port=8888):
@@ -57,11 +71,10 @@ class WebApp(object):
 if __name__ == "__main__":
     try:
         import manager
-        kiln = manager.Manager()
+        kiln = manager.Manager(simulate=True)
         app = WebApp(kiln)
-        kiln.register(app)
-        kiln.start()
+        kiln._send = app.send
 
         app.run()
     except KeyboardInterrupt:
-        kiln.stop()
+        kiln.manager_stop()
