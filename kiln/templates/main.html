@@ -8,10 +8,10 @@
 
     <!-- Bootstrap -->
     <!-- Latest compiled and minified CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/bootstrap.min.css">
 
     <!-- Optional theme -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="css/bootstrap-theme.min.css">
     
     <style type="text/css">
       body {
@@ -118,11 +118,13 @@
         </div>
         <div class="col-sm-4 col-md-4">
             <div class="input-group input-group-lg row-space">
-              <input type="text" disabled="disabled" class="form-control" placeholder="Load profile">
+              <input id="profile_name" type="text" disabled="disabled" class="form-control" placeholder="Load profile">
               <div class="input-group-btn">
                 <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>
-                <ul class="dropdown-menu dropdown-menu-right" role="menu">
-                  <li><a href="#">...</a></li>
+                <ul id="profile_list" class="dropdown-menu dropdown-menu-right" role="menu">
+                  {% for fname, name in profiles.items() %}
+                    <li><a href="#" data-fname="{{fname}}">{{ name }}</a></li>
+                  {% end %}
                 </ul>
               </div><!-- /btn-group -->
             </div><!-- /input-group -->
@@ -130,9 +132,11 @@
               <div class='panel-body'>
                 <dl class='dl-horizontal'>
                   <dt>Total time</dt>
-                  <dd></dd>
+                  <dd id="profile_time_total"></dd>
+                  <dt>Start time</dt>
+                  <dd id="profile_time_start"></dd>
                   <dt>Finish at</dt>
-                  <dd></dd>
+                  <dd id="profile_time_finish"></dd>
                 </dl>
               </div>
             </div>
@@ -148,16 +152,17 @@
 
     </div> <!-- /container -->
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
-    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
-    <script type="text/javascript" src="temp_graph.js"></script>
-    <script type="text/javascript" src="temp_monitor.js"></script>
+    <script src="js/jquery.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/d3.v3.min.js" charset="utf-8"></script>
+    <script type="text/javascript" src="js/temp_graph.js"></script>
+    <script type="text/javascript" src="js/temp_profile.js"></script>
+    <script type="text/javascript" src="js/temp_monitor.js"></script>
     <script type="text/javascript">
     var monitor;
     d3.json("temperature.json", function(error, data) {
         monitor = new tempgraph.Monitor(data);
-        monitor.set_state("{{ state }}");
+        monitor.setState("{{ state }}");
     });
     </script>
   </body>

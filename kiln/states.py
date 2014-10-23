@@ -84,10 +84,11 @@ class Cooling(State):
 		return Running, kwargs
 
 class Running(State):
-	def __init__(self, parent, history, **kwargs):
+	def __init__(self, parent, history, start_time=None, **kwargs):
 		super(Running, self).__init__(parent)
+		self.start_time = start_time
 		self.profile = manager.Profile(therm=self.parent.therm, regulator=self.parent.regulator, 
-			callback=self._notify, **kwargs)
+			callback=self._notify, start_time=start_time **kwargs)
 		self.history = history
 
 	def _notify(self, therm, setpoint, out):

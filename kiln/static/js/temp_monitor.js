@@ -1,30 +1,33 @@
 var tempgraph = (function(module) {
 	module.Monitor = function(initial) {
 		this.temperature = initial;
+		this.profile = null;
 		//default to F
 		this.scalefunc = module.temp_to_F;
 		this.temp_suffix = "°F"
 		this.temp_prefix = ""
 		
-		this.graph = new tempgraph.Graph();
+		this.graph = new module.Graph();
 		this._mapped = this.temperature.map(this._map_temp.bind(this));
 		this.graph.plot(this._mapped, "temperature", false);
 
-		this.update_temp(this.last());
+		this.updateTemp(this.last());
 		this._bindUI();
 	}
-	module.Monitor.prototype.update_temp = function(data) {
+	module.Monitor.prototype.updateTemp = function(data) {
 		var now = new Date(data.time*1000.);
 		var temp = this.scalefunc(data.temp);
 
-		var hourstr = now.getHours() % 12;
-		hourstr = hourstr == 0 ? 12 : hourstr;
-		var minstr = now.getMinutes();
-		minstr = minstr.length < 2 ? "0"+minstr : minstr;
-		var nowstr = hourstr + ":" + minstr + (now.getHours() >= 12 ? " pm" : " am");
+		var nowstr = module.format_time(now);
+
 		var tempstr = Math.round(temp*100) / 100;
 		$("#current_time").text(nowstr);
 		$("#current_temp").text(this.temp_prefix+tempstr+this.temp_suffix);
+
+		if (this.profile) {
+			var finish = module.format_time(this.profile.time_finish(now));
+			$("#profile_time_finish").text(finish);
+		}
 
 		//Adjust x and ylims
 		if (now > this.last().time) {
@@ -60,10 +63,14 @@ var tempgraph = (function(module) {
 			}
 		}
 	}
-	module.Monitor.prototype.update_UI = function(packet) {
-
-	}
-	module.Monitor.prototype.setProfile = function(profile) {
+	module.Monitor.prototype.setProfile = function(schedule, start_time) {
+		this.profile = new module.Profile(schedule, start_time);
+		var start = this.profile.time_start === undefined ? 
+			"Not started" : module.format_time(start_time);
+		$("#profile_time_total").text(this.profile.time_total);
+		$("#profile_time_start").text(start);
+		//$("#profile_time_finish") = this.profile.time_finish();
+		$("#profile_info, #profile_actions").hide().removeClass("hidden").slideDown();
 	}
 	module.Monitor.prototype.last = function() {
 		return this.temperature[this.temperature.length-1];
@@ -103,23 +110,27 @@ var tempgraph = (function(module) {
 		return {x:new Date(d.time*1000), y:this.scalefunc(d.temp)};
 	}
 
-	module.Monitor.prototype.set_state = function(name) {
+	module.Monitor.prototype.setState = function(name) {
 		if (name == "Lit") {
 			$("#ignite_button").addClass("disabled");
 			$("#current_output").removeAttr("disabled");
 			$("#stop_button").removeClass("disabled");
 			$("#stop_button_navbar").removeClass("hidden disabled");
+			$("#profile_select").removeClass("disabled");
 		} else if (name == "Idle" || name == "Cooling") {
 			$("#ignite_button").removeClass("disabled");
 			$("#current_output").attr("disabled", "disabled");
 			$("#stop_button").addClass("disabled");
 			$("#stop_button_navbar").addClass("hidden disabled");
+			$("#profile_select").removeClass("disabled");
 		} 
 	}
 	module.Monitor.prototype._bindUI = function() {
 		$("#temp_scale_C").click(function() { this.setScale("C");}.bind(this));
 		$("#temp_scale_F").click(function() { this.setScale("F");}.bind(this));
 		//$("#temp_scale_C").click(function() { this.setScale("C");}.bind(this));
+
+		$("#profile_name").val("");
 
 		$("#ignite_button").click(function() {
 			this._disable_all();
@@ -149,9 +160,13 @@ var tempgraph = (function(module) {
 			})
 		});
 
-
-
-
+		$("#profile_list a").click(function(e) {
+			$("#profile_name").val($(e.target).text());
+			var fname = $(e.target).attr("data-fname");
+			$.getJSON("/profile/"+fname, function(data) {
+				this.setProfile(data);
+			}.bind(this));
+		}.bind(this));
 
 		try {
 			var sock = new WebSocket("ws://"+window.location.hostname+":"+window.location.port+"/ws/", "protocolOne");
@@ -159,9 +174,9 @@ var tempgraph = (function(module) {
 			sock.onmessage = function(event) {
 				var data = JSON.parse(event.data);
 				if (data.type == "temperature")
-					this.update_temp(data);
+					this.updateTemp(data);
 				else if (data.type == "state") {
-					this.set_state(data.state);
+					this.setState(data.state);
 				}
 			}.bind(this);
 		} catch (e) {}
@@ -178,6 +193,16 @@ var tempgraph = (function(module) {
 	}
 	module.temp_to_cone = function(temp) {
 		return "Not implemented"
+	}
+
+	module.format_time = function(now) {
+		if (!(now instanceof Date))
+			now = new Date(now);
+		var hourstr = now.getHours() % 12;
+		hourstr = hourstr == 0 ? 12 : hourstr;
+		var minstr = now.getMinutes();
+		minstr = minstr < 10 ? "0"+minstr : minstr;
+		return hourstr + ":" + minstr + (now.getHours() >= 12 ? " pm" : " am");
 	}
 
     return module;
