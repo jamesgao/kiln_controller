@@ -2,7 +2,6 @@ import stepper
 import time
 import random
 import thermo
-import warnings
 import threading
 import traceback
 import logging
@@ -36,10 +35,7 @@ class Manager(threading.Thread):
 		if self._send is not None:
 			self._send(data)
 		else:
-			logging.warn("No notifier set, ignoring message: %s"%data)
-
-	def __del__(self):
-		self.manager_stop()
+			logger.info("No notifier set, ignoring message: %s"%data)
 
 	def __getattr__(self, name):
 		"""Mutates the manager to return State actions
@@ -58,12 +54,12 @@ class Manager(threading.Thread):
 		if isinstance(output, type) and issubclass(output, states.State) :
 			self.state = output(self)
 			self.state_change.set()
-			self.notify(dict(type="change", state=output.__name__))
+			self.notify(dict(type="state", state=output.__name__))
 		elif isinstance(output, tuple) and issubclass(output[0], states.State):
 			newstate, kwargs = output
 			self.state = newstate(self, **kwargs)
-			self.notify(dict(type="change", state=newstate.__name__))
-		elif isinstance(output, dict) and "type" in dict:
+			self.notify(dict(type="state", state=newstate.__name__))
+		elif isinstance(output, dict) and "type" in output:
 			self.notify(output)
 		elif output is not None:
 			logger.warn("Unknown state output: %r"%output)

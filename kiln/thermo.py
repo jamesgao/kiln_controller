@@ -1,5 +1,6 @@
 import re
 import time
+import random
 import datetime
 import logging
 import threading
@@ -23,7 +24,7 @@ tempsample = namedtuple("tempsample", ['time', 'temp'])
 class MAX31850(object):
     def __init__(self, name="3b-000000182b57", smooth_window=4):
         self.device = "/sys/bus/w1/devices/%s/w1_slave"%name
-        self.temps = deque(maxlen=smooth_window)
+        self.history = deque(maxlen=smooth_window)
         self.last = None
 
     def _read_temp(self):
@@ -41,9 +42,8 @@ class MAX31850(object):
 
     def get(self):
         """Blocking call to retrieve latest temperature sample"""
-        temp = self._read_temp()
+        self.history.append(self._read_temp())
         self.last = time.time()
-        self.history.append(temp)
         return self.temperature
 
     @property
@@ -54,16 +54,26 @@ class MAX31850(object):
         return tempsample(self.last, sum(self.history) / float(len(self.history)))
 
 class Simulate(object):
-    def __init__(self, regulator):
+    def __init__(self, regulator, smooth_window=4):
         self.regulator = regulator
+        self.history = deque(maxlen=smooth_window)
+        self.last = None
+
+    def _read_temp(self):
+        time.sleep(.8)
+        return max([self.regulator.output, 0]) * 1000. + 15+random.gauss(0,.2)
 
     def get(self):
-        time.sleep(.8)
+        self.history.append(self._read_temp())
+        self.last = time.time()
         return self.temperature
 
     @property
     def temperature(self):
-        return tempsample(time.time(), self.regulator.output * 1000. + 15)
+        if self.last is None or time.time() - self.last > 5:
+            return self.get()
+
+        return tempsample(self.last, sum(self.history) / float(len(self.history)))
 
 class Monitor(threading.Thread):
     def __init__(self, cls=MAX31850, **kwargs):

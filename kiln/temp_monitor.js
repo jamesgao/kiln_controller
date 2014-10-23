@@ -18,12 +18,13 @@ var tempgraph = (function(module) {
 		var temp = this.scalefunc(data.temp);
 
 		var hourstr = now.getHours() % 12;
-		hourstr = hourstr == 0 ? 12 : houstr;
+		hourstr = hourstr == 0 ? 12 : hourstr;
 		var minstr = now.getMinutes();
 		minstr = minstr.length < 2 ? "0"+minstr : minstr;
 		var nowstr = hourstr + ":" + minstr + (now.getHours() >= 12 ? " pm" : " am");
+		var tempstr = Math.round(temp*100) / 100;
 		$("#current_time").text(nowstr);
-		$("#current_temp").text(this.temp_prefix+temp+this.temp_suffix);
+		$("#current_temp").text(this.temp_prefix+tempstr+this.temp_suffix);
 
 		//Adjust x and ylims
 		if (now > this.last().time) {
@@ -49,8 +50,14 @@ var tempgraph = (function(module) {
 
 		//update the output slider and text, if necessary
 		if (data.output !== undefined) {
-			$("#current_output_text").text(data.output*100+"%");
-			$("#current_output").val(data.output*1000);
+			if (data.output == -1) {
+				$("#current_output_text").text("Off");
+				$("#current_output").val(0);
+			} else {
+				var outstr = Math.round(data.output*10000) / 100;
+				$("#current_output_text").text(outstr+"%");
+				$("#current_output").val(data.output*1000);
+			}
 		}
 	}
 	module.Monitor.prototype.update_UI = function(packet) {
@@ -96,10 +103,56 @@ var tempgraph = (function(module) {
 		return {x:new Date(d.time*1000), y:this.scalefunc(d.temp)};
 	}
 
-	module.Monitor.prototype.setState = function(name) {
-		
+	module.Monitor.prototype.set_state = function(name) {
+		if (name == "Lit") {
+			$("#ignite_button").addClass("disabled");
+			$("#current_output").removeAttr("disabled");
+			$("#stop_button").removeClass("disabled");
+			$("#stop_button_navbar").removeClass("hidden disabled");
+		} else if (name == "Idle" || name == "Cooling") {
+			$("#ignite_button").removeClass("disabled");
+			$("#current_output").attr("disabled", "disabled");
+			$("#stop_button").addClass("disabled");
+			$("#stop_button_navbar").addClass("hidden disabled");
+		} 
 	}
 	module.Monitor.prototype._bindUI = function() {
+		$("#temp_scale_C").click(function() { this.setScale("C");}.bind(this));
+		$("#temp_scale_F").click(function() { this.setScale("F");}.bind(this));
+		//$("#temp_scale_C").click(function() { this.setScale("C");}.bind(this));
+
+		$("#ignite_button").click(function() {
+			this._disable_all();
+			$.getJSON("/do/ignite", function(data) {
+				if (data.type == "error")
+					alert(data.msg, data.error);
+			});
+		}.bind(this));
+
+		$("#stop_button, #stop_button_navbar").click(function() {
+			this._disable_all();
+			$.getJSON("/do/stop", function(data) {
+				if (data.type == "error")
+					alert(data.msg, data.error);
+				else if (data.type == "success") {
+					$("#current_output").val(0);
+				}
+			});
+		}.bind(this));
+
+		$("#current_output").mouseup(function(e) {
+			$.getJSON("/do/set?value="+(e.target.value / 1000), function(data) {
+				if (data.type == "error")
+					alert(data.msg, data.error);
+				else if (data.type == "success")
+					$("#current_output_text").text(e.target.value/10 + "%");
+			})
+		});
+
+
+
+
+
 		try {
 			var sock = new WebSocket("ws://"+window.location.hostname+":"+window.location.port+"/ws/", "protocolOne");
 
@@ -107,14 +160,17 @@ var tempgraph = (function(module) {
 				var data = JSON.parse(event.data);
 				if (data.type == "temperature")
 					this.update_temp(data);
+				else if (data.type == "state") {
+					this.set_state(data.state);
+				}
 			}.bind(this);
 		} catch (e) {}
-	
-		$("#temp_scale_C").click(function() { this.setScale("C");}.bind(this));
-		$("#temp_scale_F").click(function() { this.setScale("F");}.bind(this));
-		//$("#temp_scale_C").click(function() { this.setScale("C");}.bind(this));
 	}
 
+	module.Monitor.prototype._disable_all = function() {
+		$("button").addClass("disabled");
+		$("input").attr("disabled", "disabled");
+	}
 
 	module.temp_to_C = function(temp) { return temp; }
 	module.temp_to_F = function(temp) {
@@ -126,8 +182,3 @@ var tempgraph = (function(module) {
 
     return module;
 }(tempgraph || {}));
-
-d3.json("temperature.json", function(error, data) {
-    monitor = new tempgraph.Monitor(data);
-    
-});
