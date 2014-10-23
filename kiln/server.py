@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import os
 import re
 import time
@@ -10,6 +13,8 @@ import tornado.web
 from tornado import websocket
 
 import paths
+
+cone_symbol = re.compile(r'\^([0-9]{1,3})')
 
 class ClientSocket(websocket.WebSocketHandler):
     def initialize(self, parent):
@@ -28,7 +33,7 @@ class ManagerHandler(tornado.web.RequestHandler):
 class MainHandler(ManagerHandler):
     def get(self):
         files = os.listdir(paths.profile_path)
-        fixname = lambda x: os.path.splitext(x)[0].replace("_", " ")
+        fixname = lambda x: cone_symbol.sub(r'Δ\1', os.path.splitext(x)[0].replace("_", " "))
         profiles = dict((fname, fixname(fname)) for fname in files)
         return self.render(os.path.join(paths.html_templates, "main.html"), 
             state=self.manager.state.__class__.__name__,

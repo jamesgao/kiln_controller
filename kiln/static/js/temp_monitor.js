@@ -192,7 +192,15 @@ var tempgraph = (function(module) {
 		return temp * 9 / 5 + 32;
 	}
 	module.temp_to_cone = function(temp) {
-		return "Not implemented"
+		var cones = [600,614,635,683,717,747,792,804,838,852,884,894,900,923,955,984,999,1046,1060,1101,1120,1137,1154,1162,1168,1186,1196,1222,1240,1263,1280,1305,1315,1326,1346]
+		var names = [];
+		for (var i = -22; i < 0; i++) {
+			names.push("0"+(""+i).slice(1));
+		}
+		for (var i = 1; i < 14; i++) {
+			names.push(""+i);
+		}
+		return cones, names
 	}
 
 	module.format_time = function(now) {
