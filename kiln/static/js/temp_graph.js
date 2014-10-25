@@ -23,7 +23,7 @@ var tempgraph = (function(module) {
                 .attr("width", this.width)
                 .attr("height", this.height);
 
-        var xfm = this.svg.append("g")
+        this.pane = this.svg.append("g")
             .attr("transform", "translate("+this.margin.left+","+this.margin.top+")")
 
         /*xfm.append("rect")
@@ -44,12 +44,12 @@ var tempgraph = (function(module) {
                 .tickSize(this.width).tickSubdivide(true);
 
             //setup axies labels and ticks
-            xfm.append("g")
+            this.pane.append("g")
                 .attr("class", "x axis")
                 //.attr("transform", "translate(0," + this.height + ")")
                 .call(this.x_axis);
 
-            xfm.append("g")
+            this.pane.append("g")
                     .attr("class", "y axis")
                     .attr("transform", "translate("+this.width+", 0)")
                     .call(this.y_axis)
@@ -63,7 +63,7 @@ var tempgraph = (function(module) {
 
         }
 
-        this.axes = xfm.append("g")
+        this.axes = this.pane.append("g")
             .attr("class", "axes")
             .attr("style", "clip-path:url(#pane)");
         window.onresize = this.resize.bind(this);
@@ -84,10 +84,11 @@ var tempgraph = (function(module) {
             .attr("d", line);
 
         if (marker !== undefined && marker) {
+            var selector = className.replace(" ", ".");
             var marker = this.axes.append("g")
-                .selectAll(".dot").data(data)
+                .selectAll("."+selector+".dot").data(data)
                 .enter().append("circle")
-                    .attr("class", "dot")
+                    .attr("class", className+" dot")
                     .attr("r", 5)
                     .attr("cx", function(d) { return this.x(d.x); }.bind(this))
                     .attr("cy", function(d) { return this.y(d.y); }.bind(this));
@@ -107,7 +108,7 @@ var tempgraph = (function(module) {
             data = this.lines[name].data;
             marker = this.lines[name].marker;
             if (marker !== undefined) {
-                this.svg.selectAll(".dot").data(data)
+                this.axes.selectAll(".dot").data(data)
                     .attr("cx", function(d) { return this.x(d.x)}.bind(this))
                     .attr("cy", function(d) { return this.y(d.y)}.bind(this));
             }

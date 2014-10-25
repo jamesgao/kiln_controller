@@ -1,0 +1,56 @@
+body {
+  padding-top: 70px;
+}
+.row-space {
+  margin-bottom:15px;
+}
+.output-slider {
+  width:7% !important;
+}
+
+.temperature {
+  fill: none;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.axis .tick{
+  stroke:#DDD;
+  stroke-width:.5px;
+}
+.domain{
+  display:none;
+}
+
+#graph {
+  width:100%;
+  height:500px;
+}
+
+#stop_button_navbar {
+  margin-left:10px;
+  margin-right:10px;
+}
+
+#current_temp {
+  font-weight:bold;
+  font-size:200%;
+  color:black;
+}
+
+.profile-pane {
+  fill:#EEE;
+}
+.profile-line {
+  stroke:green;
+  stroke-width:1.5px;
+  fill:none;
+}
+.profile-line.dot {
+  fill:white;
+  stroke:black;
+  stroke-width:1px;
+}
+.profile-line.dot:hover {
+  stroke-width:5px;
+}

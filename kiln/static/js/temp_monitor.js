@@ -62,9 +62,13 @@ var tempgraph = (function(module) {
 				$("#current_output").val(data.output*1000);
 			}
 		}
+
+		//update the profile
+		if (this.profile)
+			this.profile.update();
 	}
 	module.Monitor.prototype.setProfile = function(schedule, start_time) {
-		this.profile = new module.Profile(schedule, start_time);
+		this.profile = new module.Profile(this.graph, this.scalefunc, schedule, start_time);
 		var start = this.profile.time_start === undefined ? 
 			"Not started" : module.format_time(start_time);
 		$("#profile_time_total").text(this.profile.time_total);
@@ -102,8 +106,10 @@ var tempgraph = (function(module) {
 		this._mapped = this.temperature.map(this._map_temp.bind(this));
 		this.graph.y.domain(d3.extent(this._mapped, function(d) { return d.y; }));
 
-		this.update_temp(this.last());
+		this.updateTemp(this.last());
 		this.graph.update("temperature", this._mapped);
+		if (this.profile)
+			this.profile.setScale(this.scalefunc);
 	}
 
 	module.Monitor.prototype._map_temp = function(d) {
@@ -169,7 +175,7 @@ var tempgraph = (function(module) {
 		}.bind(this));
 
 		try {
-			var sock = new WebSocket("ws://"+window.location.hostname+":"+window.location.port+"/ws/", "protocolOne");
+			var sock = new WebSocket("ws://"+window.location.hostname+":"+window.location.port+"/ws/");
 
 			sock.onmessage = function(event) {
 				var data = JSON.parse(event.data);
