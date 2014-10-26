@@ -19,7 +19,7 @@ class Stepper(threading.Thread):
         [0,0,1,1],
         [1,0,0,1]]
 
-    def __init__(self, pin1=5, pin2=6, pin3=13, pin4=19, timeout=1):
+    def __init__(self, pin1=5, pin2=6, pin3=13, pin4=19, timeout=1, home_pin=None):
         super(Stepper, self).__init__()
         self.daemon = True
 
@@ -32,9 +32,11 @@ class Stepper(threading.Thread):
         GPIO.setup(pin2, GPIO.OUT)
         GPIO.setup(pin3, GPIO.OUT)
         GPIO.setup(pin4, GPIO.OUT)
+        self.home_pin = home_pin
+        GPIO.setup(home_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-        self.phase = 0
         self.timeout = timeout
+        self.home()
         self.start()
 
     def stop(self):
@@ -55,6 +57,18 @@ class Stepper(threading.Thread):
         self.finished.clear()
         self.queue.put((num, speed, block))
         self.finished.wait()
+
+    def home(self):
+        if self.home_pin is None:
+            raise ValueError("No homing switch defined")
+
+        while GPIO.input(self.home_pin):
+            for i in range(len(self.pattern)):
+                for pin, out in zip(self.pins, self.pattern[i]):
+                    GPIO.output(pin, out)
+                time.sleep(1. / 150.)
+
+        self.phase = 0
 
     def run(self):
         try:
@@ -202,7 +216,8 @@ class Regulator(threading.Thread):
 
     def off(self, block=True):
         logger.info("Shutting off gas")
-        self.stepper.step(-self.current, self.speed, block=block)
+        #self.stepper.step(-self.current, self.speed, block=block)
+        self.stepper.home()
         self.current = 0
 
     def set(self, value, block=False):
