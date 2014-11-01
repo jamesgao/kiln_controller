@@ -34,8 +34,8 @@ var tempgraph = (function(module) {
         this.x = d3.time.scale().range([0, this.width]);
         this.y = d3.scale.linear().range([this.height, 0]);
 
-        this.zoom = d3.behavior.zoom().on("zoom", this.draw.bind(this))
-            .on("zoomend", this.recenter.bind(this));
+        this.zoom = d3.behavior.zoom(this.obj).on("zoom", this.draw.bind(this))
+            .on("zoomend", this.recenter.bind(this, .2));
 
         if (options.show_axes === undefined || options.show_axes) {
             this.x_axis = d3.svg.axis().scale(this.x).orient("bottom")
@@ -71,7 +71,6 @@ var tempgraph = (function(module) {
     };
     module.Graph.prototype.plot = function(data, className, marker) {
         this.x.domain(d3.extent(data, function(d) { return d.x; }));
-        this.y.domain(d3.extent(data, function(d) { return d.y; }));
         this.zoom.x(this.x);
 
         var line = d3.svg.line()
@@ -97,7 +96,8 @@ var tempgraph = (function(module) {
         this.lines[className] = {line:line, data:data, marker:marker};
         this.svg.call(this.zoom);
         this.draw();
-        return line;
+        this.recenter(.2);
+        return this.lines[className];
     }
     module.Graph.prototype.draw = function() {
         this.svg.select("g.x.axis").call(this.x_axis);
@@ -130,15 +130,24 @@ var tempgraph = (function(module) {
         this.height = height;
         this.draw();
     }
-    module.Graph.prototype.recenter = function() {
+    module.Graph.prototype.recenter = function(margin) {
+        //Argument margin gives the fraction of (max - min) to add to the margin
+        //Defaults to 0
         var extent = [], data, valid,
             low = this.x.domain()[0], high=this.x.domain()[1];
+
         for (var name in this.lines) {
             data = this.lines[name].data;
             valid = data.filter(function(d) { return low <= d.x && d.x <= high; })
             extent = extent.concat(valid);
         }
-        this.y.domain(d3.extent(extent, function(d) {return d.y;}));
+        extent = d3.extent(extent, function(d){return d.y});
+        if (margin > 0) {
+            var range = extent[1]-extent[0];
+            extent[0] -= margin*range;
+            extent[1] += margin*range;
+        }
+        this.y.domain(extent);
         this.draw();
     }
     module.Graph.prototype.update = function(className, data) {

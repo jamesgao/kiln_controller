@@ -3,9 +3,7 @@ var tempgraph = (function(module) {
 		this.temperature = initial;
 		this.profile = null;
 		//default to F
-		this.scalefunc = module.temp_to_F;
-		this.temp_suffix = "°F"
-		this.temp_prefix = ""
+		this.scalefunc = new module.TempScale("F");
 		
 		this.graph = new module.Graph();
 		this._mapped = this.temperature.map(this._map_temp.bind(this));
@@ -16,13 +14,11 @@ var tempgraph = (function(module) {
 	}
 	module.Monitor.prototype.updateTemp = function(data) {
 		var now = new Date(data.time*1000.);
-		var temp = this.scalefunc(data.temp);
+		var temp = this.scalefunc.scale(data.temp);
 
 		var nowstr = module.format_time(now);
-
-		var tempstr = Math.round(temp*100) / 100;
 		$("#current_time").text(nowstr);
-		$("#current_temp").text(this.temp_prefix+tempstr+this.temp_suffix);
+		$("#current_temp").text(this.scalefunc.print(Math.round(temp*100) / 100));
 
 		if (this.profile) {
 			var finish = module.format_time(this.profile.time_finish(now));
@@ -42,11 +38,9 @@ var tempgraph = (function(module) {
 			}
 
 			//If incoming sample is higher or lower than the ylims, expand that as well
-			var ylims = this.graph.y.domain(), range = 2*(ylims[1] - ylims[0]);
-			if (temp >= ylims[1]) {
-				this.graph.y.domain([ylims[0], ylims[0]+range]);
-			} else if (temp <= ylims[0]) {
-				this.graph.y.domain([ylims[1]-range, ylims[1]]);
+			var ylims = this.graph.y.domain();
+			if (temp >= ylims[1] || temp <= ylims[0]) {
+				this.graph.recenter(.2);
 			}
 			this.graph.update("temperature", this._mapped);
 		}
@@ -86,22 +80,16 @@ var tempgraph = (function(module) {
 		$("a#temp_scale_cone").parent().removeClass("active");
 		if (scale == "C") {
 			$("li a#temp_scale_C").parent().addClass("active");
-			this.scalefunc = module.temp_to_C;
+			this.scalefunc = new module.TempScale("C");
 			this.graph.ylabel("Temperature (°C)")
-			this.temp_suffix = "°C";
-			this.temp_prefix = "";
 		} else if (scale == "F") {
 			$("li a#temp_scale_F").parent().addClass("active");
-			this.scalefunc = module.temp_to_F;
+			this.scalefunc = new module.TempScale("F");
 			this.graph.ylabel("Temperature (°F)")
-			this.temp_suffix = "°F";
-			this.temp_prefix = "";
 		} else if (scale == "cone") {
 			$("li a#temp_scale_cone").parent().addClass("active");
-			this.scalefunc = module.temp_to_cone;
+			this.scalefunc = new module.TempScale("cone");
 			this.graph.ylabel("Temperature (Δ)");
-			this.temp_prefix = "Δ";
-			this.temp_suffix = "";
 		}
 		this._mapped = this.temperature.map(this._map_temp.bind(this));
 		this.graph.y.domain(d3.extent(this._mapped, function(d) { return d.y; }));
@@ -113,7 +101,7 @@ var tempgraph = (function(module) {
 	}
 
 	module.Monitor.prototype._map_temp = function(d) {
-		return {x:new Date(d.time*1000), y:this.scalefunc(d.temp)};
+		return {x:new Date(d.time*1000), y:this.scalefunc.scale(d.temp)};
 	}
 
 	module.Monitor.prototype.setState = function(name) {
@@ -193,11 +181,19 @@ var tempgraph = (function(module) {
 		$("input").attr("disabled", "disabled");
 	}
 
-	module.temp_to_C = function(temp) { return temp; }
-	module.temp_to_F = function(temp) {
-		return temp * 9 / 5 + 32;
+
+	module.TempScale = function(name) {
+		if (name == "C") {
+			this.scale = function(t) { return t;};
+			this.inverse = function(t) { return t;};
+			this.print = function(t) { return t+"°C"}
+		} else if (name == "F") {
+			this.scale = function(temp) { return temp * 9 / 5 + 32; }
+			this.inverse = function(temp) {	return (temp - 32) * 5 / 9;}
+			this.print = function(t) { return t+"°F"}
+		}
 	}
-	module.temp_to_cone = function(temp) {
+	module.TempScale.C_to_cone = function(temp) {
 		var cones = [600,614,635,683,717,747,792,804,838,852,884,894,900,923,955,984,999,1046,1060,1101,1120,1137,1154,1162,1168,1186,1196,1222,1240,1263,1280,1305,1315,1326,1346]
 		var names = [];
 		for (var i = -22; i < 0; i++) {

@@ -23,7 +23,6 @@
     <![endif]-->
   </head>
   <body>
-
     <div class="navbar navbar-default navbar-fixed-top" role="navigation">
       <div class="container-fluid">
         <div class="navbar-header">
@@ -61,8 +60,9 @@
 
       <div class="row">
         <div class="col-sm-8 col-md-8 row-space">
-          <svg id="graph" class="row-space"></svg>
           
+          <svg id="graph" class="row-space"></svg>
+
           <div class="btn-group btn-group-justified row-space">
             <div class="btn-group">
               <button id="stop_button" type="button" class="btn btn-primary disabled"><span class="glyphicon glyphicon-stop"></span> Off</button>
@@ -105,6 +105,22 @@
               <a href="#" class="btn btn-success disabled"><span class="glyphicon glyphicon-floppy-disk"></span> Save</a>
             </div>
             <img src="http://placehold.it/640x480/" class="img-responsive" alt="webcam" />
+          </div>
+        </div>
+      </div>
+
+      <div id='profile-node-info' class='panel panel-info'>
+        <div class='panel-heading name'>
+          Set point
+        </div>
+        <div class='panel-body'>
+          <div class="input-group input-group-sm row-space">
+            <span class="input-group-addon">Time</span>
+            <input type="text" class="form-control time">
+          </div>
+          <div class="input-group input-group-sm">
+            <span class="input-group-addon">Temp</span>
+            <input type="text" class="form-control temp">
           </div>
         </div>
       </div>

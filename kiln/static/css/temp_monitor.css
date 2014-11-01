@@ -52,5 +52,12 @@ body {
   stroke-width:1px;
 }
 .profile-line.dot:hover {
-  stroke-width:5px;
+  stroke-width:3px;
+}
+
+#profile-node-info {
+  float:left;
+  position:absolute;
+  display:none;
+  width:200px;
 }
