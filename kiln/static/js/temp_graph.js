@@ -83,7 +83,7 @@ var tempgraph = (function(module) {
             .attr("d", line);
 
         if (marker !== undefined && marker) {
-            var selector = className.replace(" ", ".");
+            var selector = className.replace(/ /gi, ".");
             var key = data.id === undefined ? undefined : function(d){ return d.id;};
             var marker = this.axes.append("g").selectAll("."+selector+".dot")
                 .data(data, key).enter().append("circle")
@@ -157,7 +157,7 @@ var tempgraph = (function(module) {
 
         var join, selector;
         if (this.lines[className].marker) {
-            selector = className.replace(" ", ".");
+            selector = className.replace(/ /gi, ".");
             join = this.axes.selectAll("."+selector+".dot")
                 .data(data, function(d){ return d.id;});
             join.enter().append("circle")
@@ -186,6 +186,15 @@ var tempgraph = (function(module) {
     }
     module.Graph.prototype.ylabel = function(text) {
         this.svg.select(".ylabel").text(text);
+    }
+
+    module.Graph.prototype.remove = function(className) {
+        var selector = className.replace(/ /gi, ".");
+        this.axes.selectAll("path."+selector).remove();
+        if (this.lines[className].marker) {
+            this.axes.selectAll("."+selector+".dot").remove();
+        }
+        delete this.lines[className];
     }
 
     return module;

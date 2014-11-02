@@ -41,6 +41,16 @@ body {
 .profile-pane {
   fill:#EEE;
 }
+.profile-pane-stroke {
+  fill:none;
+  stroke:#CCC;
+  stroke-width:3px;
+  cursor:ew-resize;
+}
+.profile-pane-stroke:hover {
+  stroke-width:15px;
+  stroke:#333;
+}
 .profile-line {
   stroke:green;
   stroke-width:1.5px;

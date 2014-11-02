@@ -96,6 +96,8 @@
                   <dd id="profile_time_start"></dd>
                   <dt>Finish at</dt>
                   <dd id="profile_time_finish"></dd>
+                  <dt>Remaining</dt>
+                  <dd id="profile_time_remain"></dd>
                 </dl>
               </div>
             </div>
@@ -139,6 +141,7 @@
     d3.json("temperature.json", function(error, data) {
         monitor = new tempgraph.Monitor(data);
         monitor.setState("{{ state }}");
+
     });
     </script>
   </body>

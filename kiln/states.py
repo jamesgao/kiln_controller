@@ -53,6 +53,7 @@ class Lit(State):
 			interval=float(interval)
 		)
 		return Running, kwargs
+
 	def stop(self):
 		_shutoff(self.parent.regulator, self.parent.notify)
 		return Cooling, dict(history=self.history)
@@ -88,7 +89,7 @@ class Running(State):
 		super(Running, self).__init__(parent)
 		self.start_time = start_time
 		self.profile = manager.Profile(therm=self.parent.therm, regulator=self.parent.regulator, 
-			callback=self._notify, start_time=start_time **kwargs)
+			callback=self._notify, start_time=start_time, **kwargs)
 		self.history = history
 
 	def _notify(self, therm, setpoint, out):

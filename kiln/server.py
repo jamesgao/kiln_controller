@@ -56,7 +56,7 @@ class ProfileHandler(tornado.web.RequestHandler):
 
     def post(self, name):
         try:
-            schedule = self.get_argument("schedule")
+            schedule = json.loads(self.get_argument("schedule"))
             fname = os.path.join(paths.profile_path, name)
             with open(fname, 'w') as fp:
                 json.dump(schedule, fp)

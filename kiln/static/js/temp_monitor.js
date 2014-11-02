@@ -20,11 +20,6 @@ var tempgraph = (function(module) {
 		$("#current_time").text(nowstr);
 		$("#current_temp").text(this.scalefunc.print(Math.round(temp*100) / 100));
 
-		if (this.profile) {
-			var finish = module.format_time(this.profile.time_finish(now));
-			$("#profile_time_finish").text(finish);
-		}
-
 		//Adjust x and ylims
 		if (now > this.last().time) {
 			this.temperature.push(data);
@@ -69,6 +64,7 @@ var tempgraph = (function(module) {
 		$("#profile_time_start").text(start);
 		//$("#profile_time_finish") = this.profile.time_finish();
 		$("#profile_info, #profile_actions").hide().removeClass("hidden").slideDown();
+		return this.profile;
 	}
 	module.Monitor.prototype.last = function() {
 		return this.temperature[this.temperature.length-1];
@@ -117,7 +113,9 @@ var tempgraph = (function(module) {
 			$("#stop_button").addClass("disabled");
 			$("#stop_button_navbar").addClass("hidden disabled");
 			$("#profile_select").removeClass("disabled");
-		} 
+		} else if (name == "Profile") {
+			
+		}
 	}
 	module.Monitor.prototype._bindUI = function() {
 		$("#temp_scale_C").click(function() { this.setScale("C");}.bind(this));
@@ -155,8 +153,12 @@ var tempgraph = (function(module) {
 		});
 
 		$("#profile_list a").click(function(e) {
+			$("#profile_list li").removeClass("active");
+			$(e.target).parent().addClass("active");
 			$("#profile_name").val($(e.target).text());
 			var fname = $(e.target).attr("data-fname");
+			if (this.profile)
+				this.profile.cleanup();
 			$.getJSON("/profile/"+fname, function(data) {
 				this.setProfile(data);
 			}.bind(this));

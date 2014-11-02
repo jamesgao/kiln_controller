@@ -1,49 +1,52 @@
 var tempgraph = (function(module) {
-	module.Profile = function(graph, scale, schedule, start_time) {
+	module.Profile = function(graph, scale, schedule, start_time, running) {
 		var end = schedule[schedule.length-1][0];
-		var days = Math.floor(end / 60 / 60 / 24);
-		var hours = Math.floor((end - days*60*60*24) / 60 / 60);
-		var minutes = Math.ceil((end - days*60*60*24 - hours*60*60) / 60);
-		var daystr = days > 0 ? days + " days, " : "";
-		var hourstr = hours > 0 ? hours + " hours": "";
-		var minstr = minutes > 0 ? ", "+minutes + " minutes.":".";
 		this.length = end;
-		this.time_total = daystr+hourstr+minstr;
+		this.time_total = juration.stringify(end);
 		this.time_start = start_time;
 		this.schedule = schedule;
+		this.running = running === undefined ? false : running;
 
 		this.graph = graph;
 		this.scalefunc = scale;
-		
+
+		this.drag_start = d3.behavior.drag()
+			.on("dragstart", function() {
+				d3.event.sourceEvent.stopPropagation();
+			}).on("drag.profile", this.dragStart.bind(this));
+
+		//Generate the highlight pane to indicate where the profile is running
+		this.pane_stroke = this.graph.pane.insert("line", ":first-child")
+			.attr("class", "profile-pane-stroke")
+			.attr("y1", 0).attr("y2", this.graph.height)
+			.call(this.drag_start);
+		this.pane = this.graph.pane.insert("rect", ":first-child")
+			.attr("class", "profile-pane")
+			.attr("height", this.graph.height)
+			.attr("clip-path", "url(#pane)");
+
+		this.line = this.graph.plot(this._schedule(), "profile-line", true);
+
 		//immediately view range from 10 min before to end time of profile
 		var now = new Date();
 		var rstart = new Date(now.getTime() - 10*60*100);
 		var rend = this.time_finish(now);
 		this.graph.xlim(rstart, rend);
 
-		this.pane = this.graph.pane.insert("rect", ":first-child")
-			.attr("class", "profile-pane")
-			.attr("height", this.graph.height)
-			.attr("clip-path", "url(#pane)")
-
-		this.line = this.graph.plot(this._schedule(), "profile-line", true);
-
 		this.drag = d3.behavior.drag().origin(function(d) { 
 			return {x:this.graph.x(d.x), y:this.graph.y(d.y)};
 		}.bind(this)).on("dragstart", function(d) {
 			d3.event.sourceEvent.stopPropagation();
 			this._node = this._findNode(d);
-		}.bind(this)).on("drag", this.dragNode.bind(this));
+		}.bind(this));
 
 		this.update();
 
 		//events
 		this._bindUI();
 	}
-	module.Profile.prototype.time_finish = function(now) {
-		if (this.time_start instanceof Date) {
-			return new Date(this.time_start.getTime() + this.length*1000);
-		}
+	module.Profile.prototype.time_finish = function() {
+		var now = this.time_start instanceof Date ? this.time_start : new Date();
 		return new Date(now.getTime() + this.length*1000);
 	}
 
@@ -55,17 +58,32 @@ var tempgraph = (function(module) {
 		var start_time = this.time_start instanceof Date ? this.time_start : new Date();
 		var end_time = new Date(start_time.getTime()+this.length*1000);
 		var width = this.graph.x(end_time) - this.graph.x(start_time);
+		var x = this.graph.x(start_time);
 		this.pane.attr("width", width)
 			.attr("transform","translate("+this.graph.x(start_time)+",0)");
-		
+		this.pane_stroke.attr("x1", x).attr("x2", x);
+
 		var join = this.graph.update("profile-line", this._schedule());
 		join.on("mouseover.profile", this.hoverNode.bind(this))
 			.on("mouseout.profile", this._hideInfo.bind(this))
 			.on("dblclick.profile", this.delNode.bind(this));
 		join.call(this.drag);
+
+		//update the profile info box
+		var start = this.time_start instanceof Date ? module.format_time(this.time_start) : "Not started";
+		var finish = this.time_finish();
+		var remain = (finish - (new Date())) / 1000;
+		$("#profile_time_finish").text(module.format_time(finish));
+		$("#profile_time_start").text(start);
+		$("#profile_time_remain").text(juration.stringify(remain));
 	}
 	
 	module.Profile.prototype._bindUI = function() {
+		$("#profile_name").attr("disabled", "disabled");
+		$("#profile_actions .btn-success").click(this.save.bind(this));
+		$("#profile_actions .btn-primary").click(this.start.bind(this));
+		$("#profile_actions .btn-default").click(this.pause.bind(this));
+		
 		// Info pane events
 		var updateNode = function() {
 			clearTimeout(this.timeout_infoedit);
@@ -97,8 +115,7 @@ var tempgraph = (function(module) {
 
 		//Graph events
 		this.graph.zoom.on("zoom.profile", this.update.bind(this));
-		this.line.marker.on("dblclick", this.delNode.bind(this));
-		this.graph.pane.on("dblclick", this.addNode.bind(this));
+		this.setState();
 	}
 	module.Profile.prototype._schedule = function() {
 		var start_time = this.time_start instanceof Date ? this.time_start : new Date();
@@ -152,7 +169,9 @@ var tempgraph = (function(module) {
 		this.update();
 
 		//Unlock the save buttons and names
-
+		$("#profile_name").removeAttr("disabled");
+		$("#profile_actions .btn-success").removeClass("disabled");
+		$("#profile_actions .btn-primary").addClass("disabled");
 	}
 	module.Profile.prototype._showInfo = function(node) {
 		this._node = node;
@@ -193,6 +212,9 @@ var tempgraph = (function(module) {
 			}
 		}
 		this.update();
+		$("#profile_name").removeAttr("disabled");
+		$("#profile_actions .btn-success").removeClass("disabled");
+		$("#profile_actions .btn-primary").addClass("disabled");
 	}
 	module.Profile.prototype.delNode = function(d) {
 		d3.event.stopPropagation();
@@ -205,6 +227,9 @@ var tempgraph = (function(module) {
 			}
 		}
 		this.update();
+		$("#profile_name").removeAttr("disabled");
+		$("#profile_actions .btn-success").removeClass("disabled");
+		$("#profile_actions .btn-primary").addClass("disabled");
 	}
 	module.Profile.prototype.dragNode = function(d) {
 		var time = this.graph.x.invert(d3.event.x);
@@ -214,6 +239,98 @@ var tempgraph = (function(module) {
 	module.Profile.prototype.hoverNode = function(d) {
 		clearTimeout(this.timeout_infohide);
 		this._showInfo(d.id);
+	}
+	module.Profile.prototype.dragStart = function() {
+		this.time_start = this.graph.x.invert(d3.event.x);
+		if (this.time_start > new Date())
+			this.time_start = null;
+		this.update();
+	}
+
+	module.Profile.prototype.save = function() {
+		//convert name into filename
+		var rawname = $("#profile_name").val();
+		var name = rawname.replace(/ /gi, "_");
+		name = name.replace(/Δ/gi, "^");
+		name += ".json";
+
+		var post = {schedule:JSON.stringify(this.schedule)};
+
+		$.post("/profile/"+name, post).done(function(result) {
+			if (result.type == "success") {
+				$("#profile_name").attr("disabled", "disabled");
+				$("#profile_actions .btn-success").addClass("disabled");
+				//Check if the name exists in the menu, otherwise add new entry
+				var notnew = false;
+				$("#profile_list a").each(function() {	
+					console.log($(this).data("fname"), $(this).data("fname") == name);
+					notnew = $(this).data("fname") == name || notnew; 
+				});
+				if (!notnew) {
+					//Add a new entry into the profile list dropdown
+					$("#profile_list li").removeClass("active");
+					var html = "<li><a href='#' data-fname='"+name+"' class='active'>"+rawname+"</a></li>";
+					$("#profile_list").append(html).addClass("active").select("a")
+						.click(function(e) {
+							$("#profile_list a").removeClass("active");
+							$(e.target).addClass("active");
+							$("#profile_name").val($(e.target).text());
+							var fname = $(e.target).attr("data-fname");
+							this.cleanup();
+							$.getJSON("/profile/"+fname, function(data) {
+								monitor.setProfile(data);
+							});
+						}.bind(this));
+				}
+				this.setState(false);
+			} else if (result.type == "error") {
+				alert(result.msg);
+			}
+		}.bind(this));
+
+	}
+	module.Profile.prototype.setState = function(running) {
+		this.running = running === undefined ? this.running : running;
+		console.log("Set State: ", this.running);
+		if (this.running) {
+			this.line.marker.on("dblclick.profile", null);
+			this.graph.pane.on("dblclick.profile", null);
+			$("#profile-node-info input").attr("disabled", "disabled");
+			this.drag.on("drag.profile", null);
+			this.drag_start.on("drag.profile", null);
+			$("#profile_actions .btn-success").addClass("disabled");
+			$("#profile_actions .btn-primary").addClass("disabled");
+			$("#profile_actions .btn-default").removeClass("disabled");
+		} else {
+			this.line.marker.on("dblclick.profile", this.delNode.bind(this));
+			this.graph.pane.on("dblclick.profile", this.addNode.bind(this));
+			$("#profile-node-info input").removeAttr("disabled");
+			this.drag.on("drag.profile", this.dragNode.bind(this));
+			this.drag_start.on("drag.profile", this.dragStart.bind(this));
+			$("#profile_actions .btn-success").addClass("disabled");
+			$("#profile_actions .btn-primary").removeClass("disabled");
+			$("#profile_actions .btn-default").addClass("disabled");
+		}
+	}
+	module.Profile.prototype.cleanup = function() {
+		this.graph.remove("profile-line");
+		this.pane.remove();
+		this.pane_stroke.remove();
+	}
+	module.Profile.prototype.pause = function() {
+		$("#profile_actions .btn-default").addClass("disabled");
+
+		//TODO: ajax query
+		this.setState(false)
+	}
+	module.Profile.prototype.start = function() {
+		$("#profile_actions .btn-primary").addClass("disabled");
+
+		//TODO: ajax query
+		//This should be done by the query
+		this.setState(true);
+		if (!(this.time_start instanceof Date))
+			this.time_start = new Date();
 	}
 
 
