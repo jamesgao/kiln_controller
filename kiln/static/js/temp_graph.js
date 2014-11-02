@@ -84,11 +84,11 @@ var tempgraph = (function(module) {
 
         if (marker !== undefined && marker) {
             var selector = className.replace(" ", ".");
-            var marker = this.axes.append("g")
-                .selectAll("."+selector+".dot").data(data)
-                .enter().append("circle")
+            var key = data.id === undefined ? undefined : function(d){ return d.id;};
+            var marker = this.axes.append("g").selectAll("."+selector+".dot")
+                .data(data, key).enter().append("circle")
                     .attr("class", className+" dot")
-                    .attr("r", 5)
+                    .attr("r", 10)
                     .attr("cx", function(d) { return this.x(d.x); }.bind(this))
                     .attr("cy", function(d) { return this.y(d.y); }.bind(this));
         }
@@ -154,7 +154,21 @@ var tempgraph = (function(module) {
         this.lines[className].data = data;
         this.axes.select("path."+className).datum(data)
             .attr("d", this.lines[className].line);
+
+        var join, selector;
+        if (this.lines[className].marker) {
+            selector = className.replace(" ", ".");
+            join = this.axes.selectAll("."+selector+".dot")
+                .data(data, function(d){ return d.id;});
+            join.enter().append("circle")
+                .attr("class", className+" dot")
+                .attr("r", 10);
+            join.exit().remove();
+            join.attr("cx", function(d) { return this.x(d.x); }.bind(this))
+                .attr("cy", function(d) { return this.y(d.y); }.bind(this));
+        }
         this.draw();
+        return join;
     }
     module.Graph.prototype.xlim = function(min, max) {
         if (min === undefined)

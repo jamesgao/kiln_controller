@@ -191,6 +191,8 @@ var tempgraph = (function(module) {
 			this.scale = function(temp) { return temp * 9 / 5 + 32; }
 			this.inverse = function(temp) {	return (temp - 32) * 5 / 9;}
 			this.print = function(t) { return t+"°F"}
+		} else if (name == "cone") {
+			
 		}
 	}
 	module.TempScale.C_to_cone = function(temp) {
