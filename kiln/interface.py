@@ -2,10 +2,10 @@ import smbus
 import struct
 from collections import namedtuple
 
-Status = namedtuple('Status', 'ignite flame motor main_temp weight aux_temp0 aux_temp1')
+Status = namedtuple('Status', 'ignite flame motor main_temp ambient weight aux_temp0 aux_temp1')
 
 class Kiln(object):
-    fmt = struct.Struct('<2BI4f')
+    fmt = struct.Struct('<2BH5f')
     def __init__(self, addr, bus=1):
         self.bus = smbus.SMBus(1)
         self.addr = addr
