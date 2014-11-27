@@ -3,6 +3,9 @@ import atexit
 import threading
 import warnings
 import Queue
+import logging
+
+logger = logging.getLogger("kiln.Stepper")
 
 try:
     from RPi import GPIO
@@ -16,7 +19,10 @@ class Stepper(threading.Thread):
         [0,0,1,1],
         [1,0,0,1]]
 
-    def __init__(self, pin1=5, pin2=6, pin3=13, pin4=19, timeout=1):
+    def __init__(self, pin1=5, pin2=6, pin3=13, pin4=19, timeout=1, home_pin=None):
+        super(Stepper, self).__init__()
+        self.daemon = True
+
         self.queue = Queue.Queue()
         self.finished = threading.Event()
         
@@ -26,11 +32,12 @@ class Stepper(threading.Thread):
         GPIO.setup(pin2, GPIO.OUT)
         GPIO.setup(pin3, GPIO.OUT)
         GPIO.setup(pin4, GPIO.OUT)
+        self.home_pin = home_pin
+        GPIO.setup(home_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-        self.phase = 0
         self.timeout = timeout
-        super(Stepper, self).__init__()
-        self.daemon = True
+        self.home()
+        self.start()
 
     def stop(self):
         self.queue.put((None, None, None))
@@ -50,6 +57,18 @@ class Stepper(threading.Thread):
         self.finished.clear()
         self.queue.put((num, speed, block))
         self.finished.wait()
+
+    def home(self):
+        if self.home_pin is None:
+            raise ValueError("No homing switch defined")
+
+        while GPIO.input(self.home_pin):
+            for i in range(len(self.pattern)):
+                for pin, out in zip(self.pins, self.pattern[i]):
+                    GPIO.output(pin, out)
+                time.sleep(1. / 150.)
+
+        self.phase = 0
 
     def run(self):
         try:
@@ -135,11 +154,14 @@ class StepperSim(object):
     def stop(self):
         print "stopping"
 
-
-class Regulator(object):
-    def __init__(self, maxsteps=4500, minsteps=2480, speed=150, ignite_pin=None, simulate=False):
+class Regulator(threading.Thread):
+    def __init__(self, maxsteps=4500, minsteps=2480, speed=150, ignite_pin=None, flame_pin=None, simulate=False):
         """Set up a stepper-controlled regulator. Implement some safety measures
         to make sure everything gets shut off at the end
+
+        TODO: integrate flame sensor by converting this into a thread, and checking
+        flame state regularly. If flame sensor off, immediately increase gas and attempt
+        reignition, or shut off after 5 seconds of failure.
 
         Parameters
         ----------
@@ -152,11 +174,13 @@ class Regulator(object):
         ignite_pin : int or None
             If not None, turn on this pin during the ignite sequence
         """
+
         if simulate:
             self.stepper = StepperSim()
         else:
             self.stepper = Stepper()
             self.stepper.start()
+
         self.current = 0
         self.max = maxsteps
         self.min = minsteps
@@ -165,6 +189,9 @@ class Regulator(object):
         self.ignite_pin = ignite_pin
         if ignite_pin is not None:
             GPIO.setup(ignite_pin, OUT)
+        self.flame_pin = flame_pin
+        if flame_pin is not None:
+            GPIO.setup(flame_pin, IN)
         
         def exit():
             if self.current != 0:
@@ -173,7 +200,10 @@ class Regulator(object):
         atexit.register(exit)
 
     def ignite(self, start=2800, delay=1):
-        print "Ignition..."
+        if self.current != 0:
+            raise ValueError("Must be off to ignite")
+
+        logger.info("Ignition start")
         self.stepper.step(start, self.speed, block=True)
         if self.ignite_pin is not None:
             GPIO.output(self.ignite_pin, True)
@@ -182,13 +212,13 @@ class Regulator(object):
             GPIO.output(self.ignite_pin, False)
         self.stepper.step(self.min - start, self.speed, block=True)
         self.current = self.min
-        print "Done!"
+        logger.info("Ignition complete")
 
     def off(self, block=True):
-        print "Turning off..."
-        self.stepper.step(-self.current, self.speed, block=block)
+        logger.info("Shutting off gas")
+        #self.stepper.step(-self.current, self.speed, block=block)
+        self.stepper.home()
         self.current = 0
-        print "Done!"
 
     def set(self, value, block=False):
         if self.current == 0:
@@ -200,3 +230,15 @@ class Regulator(object):
         print "Currently at %d, target %d, stepping %d"%(self.current, target, nsteps)
         self.current = target
         self.stepper.step(nsteps, self.speed, block=block)
+
+    @property
+    def output(self):
+        out = (self.current - self.min) / float(self.max - self.min)
+        if out < 0:
+            return -1
+        return out
+
+    def run(self):
+        """Check the status of the flame sensor"""
+        #since the flame sensor does not yet exist, we'll save this for later
+        pass

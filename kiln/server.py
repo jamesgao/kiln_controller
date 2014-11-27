@@ -1,43 +1,123 @@
-import time
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 import os
+import re
+import time
 import json
+import traceback
+import inspect
+
 import tornado.ioloop
 import tornado.web
 from tornado import websocket
 
-cwd = os.path.split(os.path.abspath(__file__))[0]
+import paths
+
+cone_symbol = re.compile(r'\^([0-9]{1,3})')
 
 class ClientSocket(websocket.WebSocketHandler):
     def initialize(self, parent):
         self.parent = parent
 
     def open(self):
-        self.parent.sockets.append(self)
+        self.parent.clients.append(self)
 
     def on_close(self):
-        self.parent.sockets.remove(self)
+        self.parent.clients.remove(self)
 
-class DataRequest(tornado.web.RequestHandler):
-    def initialize(self, monitor):
-        self.monitor = monitor
+class ManagerHandler(tornado.web.RequestHandler):
+    def initialize(self, manager):
+        self.manager = manager
 
+class MainHandler(ManagerHandler):
     def get(self):
-        output = [dict(time=ts[0], temp=ts[1]) for ts in self.monitor.history]
+        files = os.listdir(paths.profile_path)
+        fixname = lambda x: cone_symbol.sub(r'Δ\1', os.path.splitext(x)[0].replace("_", " "))
+        profiles = dict((fname, fixname(fname)) for fname in files)
+        return self.render(os.path.join(paths.html_templates, "main.html"), 
+            state=self.manager.state.__class__.__name__,
+            profiles=profiles,
+        )
+
+class DataRequest(ManagerHandler):
+    def get(self):
+        data = list(self.manager.history)
+        output = [dict(time=ts.time, temp=ts.temp) for ts in data]
         self.write(json.dumps(output))
 
+class ProfileHandler(tornado.web.RequestHandler):
+    def get(self, name):
+        try:
+            with open(os.path.join(paths.profile_path, name)) as fp:
+                self.write(fp.read())
+        except IOError:
+            self.write_error(404)
+
+    def post(self, name):
+        try:
+            schedule = json.loads(self.get_argument("schedule"))
+            fname = os.path.join(paths.profile_path, name)
+            with open(fname, 'w') as fp:
+                json.dump(schedule, fp)
+            self.write(dict(type="success"))
+        except IOError:
+            self.write_error(404)
+        except Exception as e:
+            self.write(dict(type="error", error=repr(e), msg=traceback.format_exc()))
+
+class DoAction(ManagerHandler):
+    def _run(self, name, argfunc):
+        func = getattr(self.manager.state, name)
+        #Introspect the function, get the arguments
+        args, varargs, keywords, defaults = inspect.getargspec(func)
+        
+        kwargs = dict()
+        if defaults is not None:
+            #keyword arguments
+            for arg, d in zip(args[-len(defaults):], defaults):
+                kwargs[arg] = argfunc(arg, default=d)
+            end = len(defaults)
+        else:
+            end = len(args)
+
+        #required arguments
+        for arg in args[1:end]:
+            kwargs[arg] = argfunc(arg)
+
+        realfunc = getattr(self.manager, name)
+        realfunc(**kwargs)
+
+    def get(self, action):
+        try:
+            self._run(action, self.get_query_argument)
+            self.write(json.dumps(dict(type="success")))
+        except Exception as e:
+            self.write(json.dumps(dict(type="error", error=repr(e), msg=traceback.format_exc())))
+
+    def post(self, action):
+        try:
+            self._run(action, self.get_argument)
+            self.write(json.dumps(dict(type="success")))
+        except Exception as e:
+            self.write(json.dumps(dict(type="error", error=repr(e), msg=traceback.format_exc())))
+
 class WebApp(object):
-    def __init__(self, monitor, port=8888):
+    def __init__(self, manager, port=8888):
         self.handlers = [
-            (r"/ws/", ClientSocket, dict(parent=self)),
-            (r"/data.json", DataRequest, dict(monitor=monitor)),
-            (r"/(.*)", tornado.web.StaticFileHandler, dict(path=cwd)),
+            (r"^/$", MainHandler, dict(manager=manager)),
+            (r"^/ws/?$", ClientSocket, dict(parent=self)),
+            (r"^/temperature.json$", DataRequest, dict(manager=manager)),
+            (r"^/do/(.*)/?$", DoAction, dict(manager=manager)),
+            (r"^/profile/?(.*)$", ProfileHandler),
+            (r"^/(.*)$", tornado.web.StaticFileHandler, dict(path=paths.html_static)),
         ]
-        self.sockets = []
+        self.clients = []
         self.port = port
 
     def send(self, data):
         jsondat = json.dumps(data)
-        for sock in self.sockets:
+        for sock in self.clients:
             sock.write_message(jsondat)
 
     def run(self):
@@ -47,14 +127,11 @@ class WebApp(object):
 
 if __name__ == "__main__":
     try:
-        import thermo
-        monitor = thermo.Monitor()
+        import manager
+        kiln = manager.Manager(simulate=True)
+        app = WebApp(kiln)
+        kiln._send = app.send
 
-        app = WebApp(monitor)
-        def send_temp(time, temp):
-            app.send(dict(time=time, temp=temp))
-        monitor.callback = send_temp
-        monitor.start()
         app.run()
     except KeyboardInterrupt:
-        monitor.stop()
+        kiln.manager_stop()

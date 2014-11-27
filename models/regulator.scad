@@ -40,11 +40,42 @@ module zipties() {
 }
 
 module holder() {
-	difference() {
-		intersection()	 {
-			translate([0,0,-3.3-thick]) scale([1,1.4]) cylinder(r=36+thick, h=16, $fn=128);
-			translate([36+thick-20,-zip_pos-3-thick, -10]) cube([20, 2*zip_pos+6+2*thick,20]);
+	width = 2*zip_pos+6+2*thick;
+
+	module slot(length) {
+		hull() {
+			cylinder(r=1, h=6);
+			translate([length,0]) cylinder(r=1, h=6);
 		}
+	}	
+
+	//translate([18,-width/2, -3.3-thick+16+32-6]) cube([12, 20, 6]);
+	difference() {
+		union() {
+			//main body
+			intersection()	 {
+				translate([0,0,-3.3-thick]) scale([1,1.4]) cylinder(r=36+thick, h=16, $fn=128);
+				translate([36+thick-20,-width/2, -10]) cube([20, width,20]);
+			}
+
+			//switch tab
+			intersection() {
+				translate([0,0,-3.3-thick]) scale([1, 1.4]) difference() {
+					cylinder(r=36+thick, h=16+34+3, $fn=128);
+					translate([0,0,-1]) cylinder(r=36, h=16+32+3-2,$fn=128);
+				}
+				translate([36+thick-20, -width/2, -3.3-thick]) cube([50, 20, 16+32+4]);
+			}
+		}
+		//Screw slots for switch
+		translate([20,-width/2+10-9.5/2, -3.3-thick+16+32-1]) {
+			translate([3,0]) slot(5);
+			translate([3,9.5]) slot(5);
+		}
+	
+		//Slot for wire to ensure no gear tangling
+		translate([20, -width/2+8.5,-3.3-thick+16+32-3]) cube([50, 3, 3]);
+
 		regulator();
 		zipties();
 	}

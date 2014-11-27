@@ -8,59 +8,12 @@
 
     <!-- Bootstrap -->
     <!-- Latest compiled and minified CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/bootstrap.min.css">
 
     <!-- Optional theme -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="css/bootstrap-theme.min.css">
     
-    <style type="text/css">
-      body {
-        padding-top: 70px;
-      }
-      .row-space {
-        margin-bottom:15px;
-      }
-      .output-slider {
-        width:7% !important;
-      }
-
-      .temperature {
-        fill: none;
-        stroke: steelblue;
-        stroke-width: 1.5px;
-      }
-      
-      .axis .tick{
-        stroke:#DDD;
-        stroke-width:.5px;
-      }
-      .domain{
-        display:none;
-      }
-
-      #graph {
-        width:100%;
-        height:500px;
-      }
-
-      rect.pane {
-        cursor: move;
-        fill: none;
-        pointer-events: all;
-      }
-
-      #stop-button {
-        margin-left:10px;
-        margin-right:10px;
-      }
-
-      #current_temp {
-        font-weight:bold;
-        font-size:200%;
-        color:black;
-      }
-
-    </style>
+    <link rel="stylesheet" href="css/temp_monitor.css">
 
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
@@ -70,7 +23,6 @@
     <![endif]-->
   </head>
   <body>
-
     <div class="navbar navbar-default navbar-fixed-top" role="navigation">
       <div class="container-fluid">
         <div class="navbar-header">
@@ -92,12 +44,12 @@
               <ul class="dropdown-menu" role="menu">
                 <li class="active"><a href="#" id="temp_scale_F">°F</a></li>
                 <li><a href="#" id="temp_scale_C">°C</a></li>
-                <li><a href="#" id="temp_scale_cone">Δ</a></li>
+                <!--<li><a href="#" id="temp_scale_cone">Δ</a></li>-->
               </ul>
             </li>
             <li><a href="#" id="current_time">Time</a></li>
             <li><a href="#" id="current_output_text">0%</a></li>
-            <li><button id="stop-button" class="btn btn-primary navbar-btn hidden" href="#">Stop</button></li>
+            <li><button id="stop_button_navbar" class="btn btn-primary navbar-btn hidden" href="#">Stop</button></li>
           </ul>
         </div><!--/.nav-collapse -->
       </div>
@@ -108,30 +60,30 @@
 
       <div class="row">
         <div class="col-sm-8 col-md-8 row-space">
-          <svg id="graph" class="row-space"></svg>
-          <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
-          <script type="text/javascript" src="temp_graph.js"></script>
-          <script type="text/javascript" src="temp_monitor.js"></script>
           
+          <svg id="graph" class="row-space"></svg>
+
           <div class="btn-group btn-group-justified row-space">
             <div class="btn-group">
-              <button type="button" class="btn btn-primary disabled"><span class="glyphicon glyphicon-stop"></span> Off</button>
+              <button id="stop_button" type="button" class="btn btn-primary disabled"><span class="glyphicon glyphicon-stop"></span> Off</button>
             </div>
             <div class="btn-group output-slider">
-              <input id="current_output" type="range" min=0 max=1000 class="btn btn-default" />
+              <input id="current_output" type="range" min=0 max=1000 value=0 class="btn btn-default" disabled="disabled" />
             </div>
             <div class="btn-group">
-              <button type="button" class="btn btn-danger"><span class="glyphicon glyphicon-fire"></span> Ignite</button>
+              <button id="ignite_button" type="button" class="btn btn-danger"><span class="glyphicon glyphicon-fire"></span> Ignite</button>
             </div>
           </div>
         </div>
         <div class="col-sm-4 col-md-4">
             <div class="input-group input-group-lg row-space">
-              <input type="text" disabled="disabled" class="form-control" placeholder="Load profile">
+              <input id="profile_name" type="text" disabled="disabled" class="form-control" placeholder="Load profile">
               <div class="input-group-btn">
                 <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>
-                <ul class="dropdown-menu dropdown-menu-right" role="menu">
-                  <li><a href="#">...</a></li>
+                <ul id="profile_list" class="dropdown-menu dropdown-menu-right" role="menu">
+                  {% for fname, name in profiles.items() %}
+                    <li><a href="#" data-fname="{{fname}}">{{ name }}</a></li>
+                  {% end %}
                 </ul>
               </div><!-- /btn-group -->
             </div><!-- /input-group -->
@@ -139,9 +91,13 @@
               <div class='panel-body'>
                 <dl class='dl-horizontal'>
                   <dt>Total time</dt>
-                  <dd></dd>
+                  <dd id="profile_time_total"></dd>
+                  <dt>Start time</dt>
+                  <dd id="profile_time_start"></dd>
                   <dt>Finish at</dt>
-                  <dd></dd>
+                  <dd id="profile_time_finish"></dd>
+                  <dt>Remaining</dt>
+                  <dd id="profile_time_remain"></dd>
                 </dl>
               </div>
             </div>
@@ -155,9 +111,38 @@
         </div>
       </div>
 
+      <div id='profile-node-info' class='panel panel-info'>
+        <div class='panel-heading name'>
+          Set point
+        </div>
+        <div class='panel-body'>
+          <div class="input-group input-group-sm row-space">
+            <span class="input-group-addon">Time</span>
+            <input type="text" class="form-control time">
+          </div>
+          <div class="input-group input-group-sm">
+            <span class="input-group-addon">Temp</span>
+            <input type="text" class="form-control temp">
+          </div>
+        </div>
+      </div>
+
     </div> <!-- /container -->
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/js/bootstrap.min.js"></script>
+    <script src="js/jquery.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/d3.v3.min.js" charset="utf-8"></script>
+    <script type="text/javascript" src="js/juration.js"></script>
+    <script type="text/javascript" src="js/temp_graph.js"></script>
+    <script type="text/javascript" src="js/temp_profile.js"></script>
+    <script type="text/javascript" src="js/temp_monitor.js"></script>
+    <script type="text/javascript">
+    var monitor;
+    d3.json("temperature.json", function(error, data) {
+        monitor = new tempgraph.Monitor(data);
+        monitor.setState("{{ state }}");
+
+    });
+    </script>
   </body>
 </html>
