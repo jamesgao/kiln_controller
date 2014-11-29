@@ -82,7 +82,7 @@ class Breakout(object):
 
     def get(self):
         time.sleep(.25)
-        return self.device.temperature
+        return tempsample(time.time(), self.device.temperature)
 
     @property
     def temperature(self):

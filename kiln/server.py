@@ -42,6 +42,7 @@ class MainHandler(ManagerHandler):
 
 class DataRequest(ManagerHandler):
     def get(self):
+        self.set_header("Content-Type", "application/json")
         data = list(self.manager.history)
         output = [dict(time=ts.time, temp=ts.temp) for ts in data]
         self.write(json.dumps(output))
@@ -128,7 +129,7 @@ class WebApp(object):
 if __name__ == "__main__":
     try:
         import manager
-        kiln = manager.Manager(simulate=True)
+        kiln = manager.Manager(simulate=False)
         app = WebApp(kiln)
         kiln._send = app.send
 

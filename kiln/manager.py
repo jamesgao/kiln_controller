@@ -1,3 +1,4 @@
+import os
 import stepper
 import time
 import random
@@ -21,8 +22,8 @@ class TempLog(object):
 		self.fname = os.path.join(paths.log_path, fname+suffix+".log")
 		with open(self.fname, 'w') as fp:
 			fp.write("time\ttemp\n")
-			for time, temp in history:
-				fp.write("%f\t%f\n"%(time, temp))
+			for t, temp in history:
+				fp.write("%f\t%f\n"%(t, temp))
 		self.next = time.time() + interval
 		self.interval = interval
 		self._buffer = []
@@ -35,8 +36,8 @@ class TempLog(object):
 		self._buffer.append(data)
 		if time.time() > self.next:
 			with open(self.fname, 'a') as fp:
-				for time, temp in self._buffer:
-					fp.write("%f\t%f\n"%(time, temp))
+				for t, temp in self._buffer:
+					fp.write("%f\t%f\n"%(t, temp))
 			self._buffer = []
 			self.next = time.time() + self.interval
 
