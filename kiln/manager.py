@@ -11,6 +11,35 @@ import PID
 
 logger = logging.getLogger("kiln.manager")
 
+class TempLog(object):
+	def __init__(self, history, interval=60, suffix=""): #save data every 60 seconds
+		import paths
+		self.history = history
+		fname = time.strftime('%Y-%m-%d_%I:%M%P')
+		if len(suffix) > 0:
+			suffix = "_"+suffix
+		self.fname = os.path.join(paths.log_path, fname+suffix+".log")
+		with open(self.fname, 'w') as fp:
+			fp.write("time\ttemp\n")
+			for time, temp in history:
+				fp.write("%f\t%f\n"%(time, temp))
+		self.next = time.time() + interval
+		self.interval = interval
+		self._buffer = []
+
+	def __iter__(self):
+		return iter(self.history)
+
+	def append(self, data):
+		self.history.append(data)
+		self._buffer.append(data)
+		if time.time() > self.next:
+			with open(self.fname, 'a') as fp:
+				for time, temp in self._buffer:
+					fp.write("%f\t%f\n"%(time, temp))
+			self._buffer = []
+			self.next = time.time() + self.interval
+
 class Manager(threading.Thread):
 	def __init__(self, start=states.Idle, simulate=False):
 		"""
@@ -18,12 +47,13 @@ class Manager(threading.Thread):
 		"""
 		super(Manager, self).__init__()
 		self._send = None
-
-		self.regulator = stepper.Regulator(simulate=simulate)
+		
 		if simulate:
+			self.regulator = stepper.Regulator(simulate=simulate)
 			self.therm = thermo.Simulate(regulator=self.regulator)
 		else:
-			self.therm = thermo.MAX31850()
+			self.regulator = stepper.Breakout(0x08)
+			self.therm = thermo.Breakout(0x08)
 
 		self.state = start(self)
 		self.state_change = threading.Event()
@@ -75,8 +105,8 @@ class Manager(threading.Thread):
 
 class Profile(threading.Thread):
 	"""Performs the PID loop required for feedback control"""
-	def __init__(self, schedule, therm, regulator, interval=5, start_time=None, callback=None,
-			 Kp=.025, Ki=.01, Kd=.005):
+	def __init__(self, schedule, therm, regulator, interval=1, start_time=None, callback=None,
+			Kp=.025, Ki=.01, Kd=.001):
 		self.schedule = schedule
 		self.therm = therm
 		self.regulator = regulator
@@ -115,7 +145,7 @@ class Profile(threading.Thread):
 					setpoint = frac * (temp1 - temp0) + temp0
 					self.pid.setPoint(setpoint)
 
-					temp = self.thermocouple.temperature
+					temp = self.therm.temperature
 					pid_out = self.pid.update(temp)
 					if pid_out < 0: pid_out = 0
 					if pid_out > 1: pid_out = 1

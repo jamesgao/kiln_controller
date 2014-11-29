@@ -19,7 +19,7 @@ class State(object):
 class Idle(State):
 	def __init__(self, manager):
 		super(Idle, self).__init__(manager)
-		self.history = deque(maxlen=1024) #about 10 minutes worth
+		self.history = deque(maxlen=2400) #about 10 minutes worth, 4 samples / sec * 60 sec / min * 10 min
 
 	def ignite(self):
 		_ignite(self.parent.regulator, self.parent.notify)
@@ -37,7 +37,7 @@ class Idle(State):
 class Lit(State):
 	def __init__(self, parent, history):
 		super(Lit, self).__init__(parent)
-		self.history = deque(history)
+		self.history = manager.TempLog(history)
 
 	def set(self, value):
 		try:
@@ -67,7 +67,11 @@ class Cooling(State):
 		ts = self.parent.therm.get()
 		self.history.append(ts)
 		if ts.temp < 50:
-			#TODO: save temperature log somewhere
+			# Direction logged by TempLog
+			# fname = time.strftime('%Y-%m-%d_%I:%M%P.log')
+			# with open(os.path.join(paths.log_path, fname), 'w') as fp:
+			# 	for time, temp in self.history:
+			# 		fp.write("%s\t%s\n"%time, temp)
 			return Idle
 		return dict(type="temperature", time=ts.time, temp=ts.temp)
 

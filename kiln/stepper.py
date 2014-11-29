@@ -242,3 +242,40 @@ class Regulator(threading.Thread):
         """Check the status of the flame sensor"""
         #since the flame sensor does not yet exist, we'll save this for later
         pass
+
+class Breakout(object):
+    def __init__(self, addr, maxsteps=4500, minsteps=2500):
+        import breakout
+        self.device = breakout.Breakout(addr)
+        self.min = minsteps
+        self.max = maxsteps
+
+        def exit():
+            if self.output != 0:
+                self.off()
+        atexit.register(exit)
+
+    def ignite(self, start=2800, delay=10):
+        self.device.ignite = 255
+        time.sleep(delay)
+        self.device.motor = start
+        time.sleep(5)
+        self.device.motor = self.min
+        self.device.ignite = 127
+
+    @property
+    def output(self):
+        out = (self.device.motor - self.min) / float(self.max - self.min)
+        if out < 0:
+            return -1
+        return out
+
+    def set(self, value):
+        if self.device.motor == 0:
+            raise ValueError('Must ignite first')
+        if not 0 <= value <= 1:
+            raise ValueError('Must give value between 0 and 1')
+        self.device.motor = int((self.max - self.min)*value + self.min)
+
+    def off(self):
+        self.device.motor = 0

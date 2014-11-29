@@ -54,13 +54,13 @@ class MAX31850(object):
         return tempsample(self.last, sum(self.history) / float(len(self.history)))
 
 class Simulate(object):
-    def __init__(self, regulator, smooth_window=4):
+    def __init__(self, regulator, smooth_window=8):
         self.regulator = regulator
         self.history = deque(maxlen=smooth_window)
         self.last = None
 
     def _read_temp(self):
-        time.sleep(.8)
+        time.sleep(.25)
         return max([self.regulator.output, 0]) * 1000. + 15+random.gauss(0,.2)
 
     def get(self):
@@ -74,6 +74,19 @@ class Simulate(object):
             return self.get()
 
         return tempsample(self.last, sum(self.history) / float(len(self.history)))
+
+class Breakout(object):
+    def __init__(self, addr):
+        import breakout
+        self.device = breakout.Breakout(addr)
+
+    def get(self):
+        time.sleep(.25)
+        return self.device.temperature
+
+    @property
+    def temperature(self):
+        return self.device.temperature
 
 class Monitor(threading.Thread):
     def __init__(self, cls=MAX31850, **kwargs):

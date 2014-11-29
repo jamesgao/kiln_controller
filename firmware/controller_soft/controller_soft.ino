@@ -14,7 +14,11 @@
 #define TEMP_UPDATE 250 //milliseconds
 #define MOTOR_TIMEOUT 5000 //milliseconds
 
-#include <Stepper.h>
+#define NO_PORTB_PINCHANGES
+#define NO_PORTC_PINCHANGES
+#define DISABLE_PCINT_MULTI_SERVICE
+
+#include <Stepper.h>time.strftime('%Y-%m-%d_%I:%M%P.log')
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_MAX31855.h>
@@ -37,6 +41,7 @@ const float step_interval = 1. / STEP_SPEED * 1000.; //milliseconds
 //intermediate variables
 Adafruit_MAX31855 thermo(PIN_TEMP_CS);
 Stepper stepper(2048, PIN_STEP1, PIN_STEP3, PIN_STEP2, PIN_STEP4);
+pushbutton reglimit = pushbutton(PIN_REGLIMIT, 5);
 
 char i2c_command;
 float next_step;
@@ -61,10 +66,6 @@ void setup() {
   //Set up regulator stepper
   status.motor = 0;
   
-  //setup regulator limit switch
-  pinMode(PIN_REGLIMIT, INPUT);
-  digitalWrite(PIN_REGLIMIT, HIGH);
-  
   //setup ignition mosfet
   pinMode(PIN_IGNITE, OUTPUT);
   digitalWrite(PIN_IGNITE, LOW);
@@ -80,14 +81,7 @@ int dir;
 unsigned long now;
 void loop() {
   now = millis();
-  if (digitalRead(PIN_REGLIMIT) == LOW) {
-    if (limit_last == 0) {
-      limit_last = millis();
-    } else if ((millis() - limit_last) > 5) {
-      n_clicks += dir;
-      limit_last = 0;
-    }
-  }
+  reglimit.update();
   
   if (stepper_target != status.motor && now > next_step) {
     dir = status.motor < stepper_target ? 1 : -1;
@@ -95,7 +89,7 @@ void loop() {
     
     //Limit switch tripped
     if (stepper_target == 0) {
-      if (n_clicks == 0)
+      if (reglimit.n_clicks == 0)
         status.motor = 0;
     } else {
       status.motor += dir;
@@ -170,7 +164,7 @@ void i2c_action(int nbytes) {
       set_regulator(*((unsigned int*) buffer));
       break;
     case 'I':
-      digitalWrite(PIN_IGNITE, buffer[0]);
+      analogWrite(PIN_IGNITE, buffer[0]);
       break;
   }
   
