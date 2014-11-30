@@ -5,6 +5,7 @@ import datetime
 import logging
 import threading
 from collections import deque, namedtuple
+from math import isnan
 
 logger = logging.getLogger("thermo")
 
@@ -82,11 +83,12 @@ class Breakout(object):
 
     def get(self):
         time.sleep(.25)
-        return tempsample(time.time(), self.device.temperature)
+        temp = self.device.temperature if not isnan(self.device.temperature) else -1
+        return tempsample(time.time(), temp)
 
     @property
     def temperature(self):
-        return self.device.temperature
+        return self.device.temperature if not isnan(self.device.temperature) else -1
 
 class Monitor(threading.Thread):
     def __init__(self, cls=MAX31850, **kwargs):

@@ -5,7 +5,6 @@ import os
 import re
 import time
 import json
-import math
 import traceback
 import inspect
 
@@ -39,7 +38,7 @@ class MainHandler(ManagerHandler):
 
         return self.render(os.path.join(paths.html_templates, "main.html"), 
             state=self.manager.state.__class__.__name__,
-            state_data=json.dumps(self.manager.state.status, allow_nan=False),
+            state_data=json.dumps(self.manager.state.status),
             profiles=profiles,
         )
 
@@ -120,7 +119,7 @@ class WebApp(object):
         self.port = port
 
     def send(self, data):
-        jsondat = json.dumps(data, allow_nan=False)
+        jsondat = json.dumps(data)
         for sock in self.clients:
             sock.write_message(jsondat)
 

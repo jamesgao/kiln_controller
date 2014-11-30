@@ -112,7 +112,7 @@ class Profile(threading.Thread):
 			Kp=.025, Ki=.01, Kd=.001):
 		super(Profile, self).__init__()
 		self.daemon = True
-		
+
 		self.schedule = schedule
 		self.therm = therm
 		self.regulator = regulator
@@ -152,6 +152,9 @@ class Profile(threading.Thread):
 					self.pid.setPoint(setpoint)
 
 					temp = self.therm.temperature.temp
+					if temp == -1:
+						continue #skip invalid temperature readings
+
 					pid_out = self.pid.update(temp)
 					if pid_out < 0: pid_out = 0
 					if pid_out > 1: pid_out = 1
