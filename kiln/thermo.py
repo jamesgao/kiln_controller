@@ -87,7 +87,7 @@ class Breakout(object):
         time.sleep(.25)
         temp = self.device.temperature
         self.last = time.time()
-        if not isnan(temp):
+        if not isnan(temp) and abs(temp - self.history[-1]) < 10:
             self.history.append(temp)
         return self.temperature
 
