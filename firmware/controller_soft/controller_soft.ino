@@ -40,7 +40,7 @@ const float step_interval = 1. / STEP_SPEED * 1000.; //milliseconds
 
 //intermediate variables
 Adafruit_MAX31855 thermo(PIN_TEMP_CS);
-Stepper stepper(2048, PIN_STEP1, PIN_STEP3, PIN_STEP2, PIN_STEP4);
+Stepper stepper(2048, PIN_STEP4, PIN_STEP2, PIN_STEP3, PIN_STEP1);
 pushbutton reglimit = pushbutton(PIN_REGLIMIT, 5);
 
 char i2c_command;
@@ -82,6 +82,7 @@ unsigned long now;
 void loop() {
   now = millis();
   reglimit.update();
+  status.aux_temp[0] = reglimit.n_clicks;
   
   if (stepper_target != status.motor && now > next_step) {
     dir = status.motor < stepper_target ? 1 : -1;
