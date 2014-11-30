@@ -80,7 +80,7 @@ class Breakout(object):
     def __init__(self, addr, smooth_window=16):
         import breakout
         self.device = breakout.Breakout(addr)
-        self.history = deque(smooth_window)
+        self.history = deque(maxlen=smooth_window)
         self.last = None
 
     def get(self):
