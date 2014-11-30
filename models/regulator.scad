@@ -1,4 +1,4 @@
-use <../lib/utils.scad>;
+use <utils.scad>;
 use <../lib/28byj.scad>;
 
 thick = 4;
@@ -44,8 +44,8 @@ module holder() {
 
 	module slot(length) {
 		hull() {
-			cylinder(r=1, h=6);
-			translate([length,0]) cylinder(r=1, h=6);
+			cylinder(r=1.5, h=6, $fn=16);
+			translate([length,0]) cylinder(r=1.5, h=6, $fn=16);
 		}
 	}	
 
@@ -61,16 +61,16 @@ module holder() {
 			//switch tab
 			intersection() {
 				translate([0,0,-3.3-thick]) scale([1, 1.4]) difference() {
-					cylinder(r=36+thick, h=16+34+3, $fn=128);
-					translate([0,0,-1]) cylinder(r=36, h=16+32+3-2,$fn=128);
+					cylinder(r=36+10+thick, h=16+34+3, $fn=128);
+					translate([0,0,16]) cylinder(r=36+10, h=32+3-2,$fn=128);
 				}
-				translate([36+thick-20, -width/2, -3.3-thick]) cube([50, 20, 16+32+4]);
+				translate([36+thick-15, -width/2, -3.3-thick]) cube([50, 20, 16+32+4]);
 			}
 		}
 		//Screw slots for switch
-		translate([20,-width/2+10-9.5/2, -3.3-thick+16+32-1]) {
-			translate([3,0]) slot(5);
-			translate([3,9.5]) slot(5);
+		translate([25,-width/2+10-9.5/2, -3.3-thick+16+32-1]) {
+			translate([3,0]) slot(10);
+			translate([3,9.5]) slot(10);
 		}
 	
 		//Slot for wire to ensure no gear tangling

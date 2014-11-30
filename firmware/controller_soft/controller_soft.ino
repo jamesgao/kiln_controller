@@ -18,7 +18,7 @@
 #define NO_PORTC_PINCHANGES
 #define DISABLE_PCINT_MULTI_SERVICE
 
-#include <Stepper.h>time.strftime('%Y-%m-%d_%I:%M%P.log')
+#include <Stepper.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <Adafruit_MAX31855.h>
@@ -48,7 +48,7 @@ float next_step;
 unsigned long next_temp;
 unsigned char motor_active = false;
 unsigned long stepper_target = 0;
-unsigned int n_clicks = 0; //Number of full rotations
+int n_clicks = 0; //Number of full rotations
 boolean limit_state = false;
 unsigned long limit_last;
 
@@ -165,6 +165,7 @@ void i2c_action(int nbytes) {
       break;
     case 'I':
       analogWrite(PIN_IGNITE, buffer[0]);
+      status.ignite = buffer[0];
       break;
   }
   

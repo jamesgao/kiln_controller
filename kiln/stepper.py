@@ -152,7 +152,7 @@ class StepperSim(object):
             time.sleep(1)
 
     def stop(self):
-        print "stopping"
+        print "stopping simulated regulator"
 
 class Regulator(threading.Thread):
     def __init__(self, maxsteps=4500, minsteps=2480, speed=150, ignite_pin=None, flame_pin=None, simulate=False):
@@ -216,8 +216,8 @@ class Regulator(threading.Thread):
 
     def off(self, block=True):
         logger.info("Shutting off gas")
-        #self.stepper.step(-self.current, self.speed, block=block)
-        self.stepper.home()
+        self.stepper.step(-self.current, self.speed, block=block)
+        #self.stepper.home()
         self.current = 0
 
     def set(self, value, block=False):
@@ -251,11 +251,12 @@ class Breakout(object):
         self.max = maxsteps
 
         def exit():
-            if self.output != 0:
+            if self.device.motor != 0:
                 self.off()
         atexit.register(exit)
 
     def ignite(self, start=2800, delay=10):
+        logger.info("Igniting system")
         self.device.ignite = 255
         time.sleep(delay)
         self.device.motor = start
@@ -279,3 +280,4 @@ class Breakout(object):
 
     def off(self):
         self.device.motor = 0
+        logger.info("Shutting off regulator")

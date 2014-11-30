@@ -1,7 +1,7 @@
 class pushbutton : public CallBackInterface
 {
   public:
-    uint8_t n_clicks;
+    int n_clicks;
     uint8_t pin;
     unsigned int interval;
     unsigned long last;
@@ -11,8 +11,6 @@ class pushbutton : public CallBackInterface
       n_clicks = 0;
       last = 0;
       init();
-      state = digitalRead(pin);
-      
     };
     void cbmethod() {
       last = millis();
@@ -31,12 +29,11 @@ class pushbutton : public CallBackInterface
   
   private:
     int dir;
-    boolean state;
     
     void init () {
       pinMode(pin, INPUT);
       digitalWrite(pin, HIGH);
-      PCintPort::attachInterrupt(pin, this, FALLING);
+      PCintPort::attachInterrupt(pin, this, CHANGE);
     };
 };
 

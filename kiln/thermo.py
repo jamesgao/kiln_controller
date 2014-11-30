@@ -54,7 +54,7 @@ class MAX31850(object):
         return tempsample(self.last, sum(self.history) / float(len(self.history)))
 
 class Simulate(object):
-    def __init__(self, regulator, smooth_window=8):
+    def __init__(self, regulator, smooth_window=120):
         self.regulator = regulator
         self.history = deque(maxlen=smooth_window)
         self.last = None

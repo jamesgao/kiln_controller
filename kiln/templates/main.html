@@ -140,8 +140,7 @@
     var monitor;
     d3.json("temperature.json", function(error, data) {
         monitor = new tempgraph.Monitor(data);
-        monitor.setState("{{ state }}");
-
+        monitor.setState("{{ state }}",{% autoescape None %} JSON.parse('{{ state_data }}'));
     });
     </script>
   </body>

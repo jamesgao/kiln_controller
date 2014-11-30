@@ -10,7 +10,8 @@ import logging
 import states
 import PID
 
-logger = logging.getLogger("kiln.manager")
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class TempLog(object):
 	def __init__(self, history, interval=60, suffix=""): #save data every 60 seconds
@@ -71,7 +72,7 @@ class Manager(threading.Thread):
 	def __getattr__(self, name):
 		"""Mutates the manager to return State actions
 		If the requested attribute is a function, wrap the function
-		such that returned objects which are States indicate a state change
+		such that returned obejcts which are States indicate a state change
 		"""
 		attr = getattr(self.state, name)
 		if hasattr(attr, "__call__"):
@@ -86,10 +87,12 @@ class Manager(threading.Thread):
 			self.state = output(self)
 			self.state_change.set()
 			self.notify(dict(type="state", state=output.__name__))
+			logger.info("Switching to state '%s'"%output.__name__)
 		elif isinstance(output, tuple) and issubclass(output[0], states.State):
 			newstate, kwargs = output
 			self.state = newstate(self, **kwargs)
 			self.notify(dict(type="state", state=newstate.__name__))
+			logger.info("Switching to state '%s'"%newstate.__name__)
 		elif isinstance(output, dict) and "type" in output:
 			self.notify(output)
 		elif output is not None:
@@ -103,11 +106,13 @@ class Manager(threading.Thread):
 		self.running = False
 		self.state_change.set()
 
-
 class Profile(threading.Thread):
 	"""Performs the PID loop required for feedback control"""
 	def __init__(self, schedule, therm, regulator, interval=1, start_time=None, callback=None,
 			Kp=.025, Ki=.01, Kd=.001):
+		super(Profile, self).__init__()
+		self.daemon = True
+		
 		self.schedule = schedule
 		self.therm = therm
 		self.regulator = regulator
@@ -146,7 +151,7 @@ class Profile(threading.Thread):
 					setpoint = frac * (temp1 - temp0) + temp0
 					self.pid.setPoint(setpoint)
 
-					temp = self.therm.temperature
+					temp = self.therm.temperature.temp
 					pid_out = self.pid.update(temp)
 					if pid_out < 0: pid_out = 0
 					if pid_out > 1: pid_out = 1

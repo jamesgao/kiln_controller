@@ -35,8 +35,10 @@ class MainHandler(ManagerHandler):
         files = os.listdir(paths.profile_path)
         fixname = lambda x: cone_symbol.sub(r'Δ\1', os.path.splitext(x)[0].replace("_", " "))
         profiles = dict((fname, fixname(fname)) for fname in files)
+
         return self.render(os.path.join(paths.html_templates, "main.html"), 
             state=self.manager.state.__class__.__name__,
+            state_data=json.dumps(self.manager.state.status),
             profiles=profiles,
         )
 
@@ -129,7 +131,7 @@ class WebApp(object):
 if __name__ == "__main__":
     try:
         import manager
-        kiln = manager.Manager(simulate=False)
+        kiln = manager.Manager(simulate=True)
         app = WebApp(kiln)
         kiln._send = app.send
 

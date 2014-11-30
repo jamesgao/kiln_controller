@@ -1,6 +1,7 @@
 """Based on the pattern provided here:
 http://python-3-patterns-idioms-test.readthedocs.org/en/latest/StateMachine.html
 """
+import json
 import time
 import traceback
 import manager
@@ -9,6 +10,10 @@ from collections import deque
 class State(object):
 	def __init__(self, manager):
 		self.parent = manager
+
+	@property
+	def status(self):
+		return dict()
 
 	def run(self):
 		"""Action that must be continuously run while in this state"""
@@ -25,7 +30,7 @@ class Idle(State):
 		_ignite(self.parent.regulator, self.parent.notify)
 		return Lit, dict(history=self.history)
 
-	def start(self, schedule, start_time=None, interval=5):
+	def start_profile(self, schedule, start_time=None, interval=5):
 		_ignite(self.parent.regulator, self.parent.notify)
 		kwargs = dict(history=self.history, 
 			schedule=json.loads(schedule), 
@@ -46,7 +51,7 @@ class Lit(State):
 		except:
 			return dict(type="error", msg=traceback.format_exc())
 
-	def start(self, schedule, start_time=None, interval=5):
+	def start_profile(self, schedule, start_time=None, interval=5):
 		kwargs = dict(history=self.history, 
 			schedule=json.loads(schedule), 
 			start_time=float(start_time), 
@@ -54,7 +59,7 @@ class Lit(State):
 		)
 		return Running, kwargs
 
-	def stop(self):
+	def shutoff(self):
 		_shutoff(self.parent.regulator, self.parent.notify)
 		return Cooling, dict(history=self.history)
 
@@ -79,7 +84,7 @@ class Cooling(State):
 		_ignite(self.parent.regulator, self.parent.notify)
 		return Lit, dict(history=self.history)
 
-	def start(self, schedule, start_time=None, interval=5):
+	def start_profile(self, schedule, start_time=None, interval=5):
 		_ignite(self.parent.regulator, self.parent.notify)
 		kwargs = dict(history=self.history, 
 			schedule=json.loads(schedule), 
@@ -91,10 +96,14 @@ class Cooling(State):
 class Running(State):
 	def __init__(self, parent, history, start_time=None, **kwargs):
 		super(Running, self).__init__(parent)
-		self.start_time = start_time
 		self.profile = manager.Profile(therm=self.parent.therm, regulator=self.parent.regulator, 
 			callback=self._notify, start_time=start_time, **kwargs)
+		self.start_time = self.profile.start_time
 		self.history = history
+
+	@property
+	def status(self):
+		return dict(start_time=self.start_time, schedule=self.profile.schedule)
 
 	def _notify(self, therm, setpoint, out):
 		self.parent.notify(dict(
@@ -107,7 +116,8 @@ class Running(State):
 
 	def run(self):
 		if self.profile.completed:
-			self.parent.notify(dict(type="profile",status="complete"))
+			#self.parent.notify(dict(type="profile",status="complete"))
+			print "Profile complete!"
 			_shutoff(self.parent.regulator, self.parent.notify)
 			return Cooling, dict(history=self.history)
 
@@ -117,11 +127,13 @@ class Running(State):
 		self.profile.stop()
 		return Lit, dict(history=self.history)
 
-	def stop(self):
+	def stop_profile(self):
 		self.profile.stop()
 		_shutoff(self.parent.regulator, self.parent.notify)
 		return Cooling, dict(history=self.history)
 
+	def shutoff(self):
+		return self.stop_profile()
 
 def _ignite(regulator, notify):
 	try:

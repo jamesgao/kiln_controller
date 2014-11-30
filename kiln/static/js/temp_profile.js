@@ -1,11 +1,10 @@
 var tempgraph = (function(module) {
-	module.Profile = function(graph, scale, schedule, start_time, running) {
+	module.Profile = function(graph, scale, schedule, start_time) {
 		var end = schedule[schedule.length-1][0];
 		this.length = end;
 		this.time_total = juration.stringify(end);
 		this.time_start = start_time;
 		this.schedule = schedule;
-		this.running = running === undefined ? false : running;
 
 		this.graph = graph;
 		this.scalefunc = scale;
@@ -291,7 +290,6 @@ var tempgraph = (function(module) {
 	}
 	module.Profile.prototype.setState = function(running) {
 		this.running = running === undefined ? this.running : running;
-		console.log("Set State: ", this.running);
 		if (this.running) {
 			this.line.marker.on("dblclick.profile", null);
 			this.graph.pane.on("dblclick.profile", null);
@@ -325,14 +323,22 @@ var tempgraph = (function(module) {
 	}
 	module.Profile.prototype.start = function() {
 		$("#profile_actions .btn-primary").addClass("disabled");
-
-		//TODO: ajax query
-		//This should be done by the query
-		this.setState(true);
-		if (!(this.time_start instanceof Date))
-			this.time_start = new Date();
+		var start_time = this.time_start instanceof Date ? this.time_start : new Date();
+		var params = {
+			schedule:JSON.stringify(this.schedule), 
+			start_time:start_time.getTime() / 1000., 
+			interval:1,
+		};
+		$.post("/do/start_profile", params, function(resp){
+			var obj = JSON.parse(resp);
+			if (obj.type == "error") {
+				alert(obj.msg);
+			} else {
+				this.setState(true);
+				this.time_start = start_time;
+			}
+		}.bind(this));
 	}
-
 
     return module;
 }(tempgraph || {}));

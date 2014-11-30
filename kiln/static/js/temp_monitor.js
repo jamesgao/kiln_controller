@@ -100,8 +100,8 @@ var tempgraph = (function(module) {
 		return {x:new Date(d.time*1000), y:this.scalefunc.scale(d.temp)};
 	}
 
-	module.Monitor.prototype.setState = function(name) {
-		if (name == "Lit") {
+	module.Monitor.prototype.setState = function(name, data) {
+		if (name == "Lit" || name =="Running") {
 			$("#ignite_button").addClass("disabled");
 			$("#current_output").removeAttr("disabled");
 			$("#stop_button").removeClass("disabled");
@@ -113,8 +113,14 @@ var tempgraph = (function(module) {
 			$("#stop_button").addClass("disabled");
 			$("#stop_button_navbar").addClass("hidden disabled");
 			$("#profile_select").removeClass("disabled");
-		} else if (name == "Profile") {
-			
+		} 
+		if (name == "Running") {
+			if (data !== undefined) {
+				this.setProfile(data.schedule, new Date(data.start_time*1000));
+			}
+			this.profile.setState(true);
+		} else if (this.profile === undefined) {
+			this.profile.setState(false);
 		}
 	}
 	module.Monitor.prototype._bindUI = function() {
@@ -134,7 +140,7 @@ var tempgraph = (function(module) {
 
 		$("#stop_button, #stop_button_navbar").click(function() {
 			this._disable_all();
-			$.getJSON("/do/stop", function(data) {
+			$.getJSON("/do/shutoff", function(data) {
 				if (data.type == "error")
 					alert(data.msg, data.error);
 				else if (data.type == "success") {
