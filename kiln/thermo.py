@@ -77,18 +77,26 @@ class Simulate(object):
         return tempsample(self.last, sum(self.history) / float(len(self.history)))
 
 class Breakout(object):
-    def __init__(self, addr):
+    def __init__(self, addr, smooth_window=16):
         import breakout
         self.device = breakout.Breakout(addr)
+        self.history = deque(smooth_window)
+        self.last = None
 
     def get(self):
         time.sleep(.25)
-        temp = self.device.temperature if not isnan(self.device.temperature) else -1
-        return tempsample(time.time(), temp)
+        temp = self.device.temperature
+        self.last = time.time()
+        if not isnan(temp):
+            self.history.append(temp)
+        return self.temperature
 
     @property
     def temperature(self):
-        return self.device.temperature if not isnan(self.device.temperature) else -1
+        if self.last is None or time.time() - self.last > 5:
+            return self.get()
+
+        return tempsample(self.last, sum(self.history) / float(len(self.history)))
 
 class Monitor(threading.Thread):
     def __init__(self, cls=MAX31850, **kwargs):
