@@ -244,7 +244,7 @@ class Regulator(threading.Thread):
         pass
 
 class Breakout(object):
-    def __init__(self, addr, maxsteps=6000, minsteps=3700):
+    def __init__(self, addr, maxsteps=4500, minsteps=2100):
         import breakout
         self.device = breakout.Breakout(addr)
         self.min = minsteps
@@ -255,12 +255,13 @@ class Breakout(object):
                 self.off()
         atexit.register(exit)
 
-    def ignite(self, start=3850, delay=10):
+    def ignite(self, start=2500, delay=8):
         logger.info("Igniting system")
         self.device.ignite = 255
         time.sleep(delay)
         self.device.motor = start
-        time.sleep(5)
+        while self.device.motor != start:
+            time.sleep(.1)
         self.device.motor = self.min
         self.device.ignite = 127
 
