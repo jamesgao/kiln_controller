@@ -35,7 +35,11 @@ class Breakout(object):
 
     def _set_cmd(self, cmd, value, fmt='f'):
         out = map(ord, struct.pack('<'+fmt, value))
-        self.bus.write_i2c_block_data(self.addr, ord(cmd), out)
+        while True:
+            try:
+                return self.bus.write_i2c_block_data(self.addr, ord(cmd), out)
+            except IOError:
+                pass
 
     @property
     def motor(self):

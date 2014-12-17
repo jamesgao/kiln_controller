@@ -131,7 +131,7 @@ class WebApp(object):
 if __name__ == "__main__":
     try:
         import manager
-        kiln = manager.Manager(simulate=True)
+        kiln = manager.Manager(simulate=False)
         app = WebApp(kiln)
         kiln._send = app.send
 

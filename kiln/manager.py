@@ -65,7 +65,10 @@ class Manager(threading.Thread):
 
 	def notify(self, data):
 		if self._send is not None:
-			self._send(data)
+                        try:
+			     self._send(data)
+                        except:
+                             pass
 		else:
 			logger.info("No notifier set, ignoring message: %s"%data)
 
@@ -109,7 +112,7 @@ class Manager(threading.Thread):
 class Profile(threading.Thread):
 	"""Performs the PID loop required for feedback control"""
 	def __init__(self, schedule, therm, regulator, interval=1, start_time=None, callback=None,
-			Kp=.025, Ki=.01, Kd=.001):
+			Kp=.03, Ki=.015, Kd=.001):
 		super(Profile, self).__init__()
 		self.daemon = True
 
