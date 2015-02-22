@@ -244,7 +244,7 @@ class Regulator(threading.Thread):
         pass
 
 class Breakout(object):
-    def __init__(self, addr, maxsteps=6500, minsteps=((3000, 5), (2480, 20)) ):
+    def __init__(self, addr, maxsteps=6500, minsteps=((2900, 0), (2480, 12)) ):
         import breakout
         self.device = breakout.Breakout(addr)
         self.min_interp = minsteps
