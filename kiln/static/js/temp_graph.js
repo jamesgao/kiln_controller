@@ -150,7 +150,31 @@ var tempgraph = (function(module) {
         this.y.domain(extent);
         this.draw();
     }
+    module.Graph.prototype.resample = function(data) {
+        var npoints = 1000;
+        var idxs = []
+        var within = [];
+        var within_idx = [];
+        for (var i=0; i<data.length; i++) {
+            if (data[i].x>=this.xlim()[0] && data[i].x<=this.xlim()[1]) {
+                within.push(data[i]);
+                within_idx.push(i);
+            }
+        }
+        if (within.length>npoints) {
+            md = Math.floor(within.length/npoints);
+            var fin = []
+            for (var i=0; i<within.length; i++) {
+                if (within_idx[i]%md==0)
+                    fin.push(within[i]);
+            }
+            return fin;
+        }
+        else
+            return within;
+    }
     module.Graph.prototype.update = function(className, data) {
+        var data = this.resample(data);
         this.lines[className].data = data;
         this.axes.select("path."+className).datum(data)
             .attr("d", this.lines[className].line);
