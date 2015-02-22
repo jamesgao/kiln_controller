@@ -244,10 +244,10 @@ class Regulator(threading.Thread):
         pass
 
 class Breakout(object):
-    def __init__(self, addr, maxsteps=6500, minsteps=2300):
+    def __init__(self, addr, maxsteps=6500, minsteps=((3000, 5), (2480, 20)) ):
         import breakout
         self.device = breakout.Breakout(addr)
-        self.min = minsteps
+        self.min_interp = minsteps
         self.max = maxsteps
 
         def exit():
@@ -255,31 +255,42 @@ class Breakout(object):
                 self.off()
         atexit.register(exit)
 
-    def ignite(self, start=2500, delay=5):
+    @property
+    def min(self):
+        temp = self.device.status.aux_temp0
+        if temp > self.min_interp[1][1]:
+            return self.min_interp[1][0]
+        elif temp <= self.min_interp[0][1]:
+            return self.min_interp[0][0]
+        else:
+            mrange = self.min_interp[0][0] - self.min_interp[1][0]
+            trange = self.min_interp[1][1] - self.min_interp[0][1]
+            mix = (temp - self.min_interp[0][1]) / float(trange)
+            return mrange * mix + self.min_interp[1][0]
+
+    def ignite(self, start=2550, delay=5):
         logger.info("Igniting system")
-        self.device.ignite = 127
-        time.sleep(2)
-        self.device.ignite = 255
         time.sleep(delay)
         self.device.motor = start
         while self.device.motor != start:
             time.sleep(.1)
         self.device.motor = self.min
-        #self.device.ignite = 127
 
     @property
     def output(self):
-        out = (self.device.motor - self.min) / float(self.max - self.min)
+        m = self.min
+        out = (self.device.motor - m) / float(self.max - m)
         if out < 0:
             return -1
         return out
 
     def set(self, value):
+        m = self.min
         if self.device.motor == 0:
             raise ValueError('Must ignite first')
         if not 0 <= value <= 1:
             raise ValueError('Must give value between 0 and 1')
-        self.device.motor = int((self.max - self.min)*value + self.min)
+        self.device.motor = int((self.max - m)*value + m)
 
     def off(self):
         self.device.motor = 0
