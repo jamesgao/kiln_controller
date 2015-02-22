@@ -161,12 +161,10 @@ class Profile(threading.Thread):
 					elif temp - setpoint > 50:
 						self.regulator.off()
 						self.duty_cycle = True
-
+					elif self.duty_cycle and temp - setpoint < -20:
+						self.regulator.ignite()
+						self.duty_cycle = False
 					else:
-						if self.duty_cycle:
-							self.regulator.ignite()
-							self.duty_cycle = False
-						
 						pid_out = self.pid.update(temp)
 						if pid_out < 0: pid_out = 0
 						if pid_out > 1: pid_out = 1
