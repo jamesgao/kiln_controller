@@ -153,14 +153,12 @@ var tempgraph = (function(module) {
     module.Graph.prototype.resample = function(data) {
         var npoints = 1000;
         var idxs = []
-        for (var i=0;i<data.length;i++)
-            idxs.push(i);
         var within = [];
         var within_idx = [];
         for (var i=0; i<data.length; i++) {
             if (data[i].x>=this.xlim()[0] && data[i].x<=this.xlim()[1]) {
                 within.push(data[i]);
-                within_idx.push(idxs[i]);
+                within_idx.push(i);
             }
         }
         if (within.length>npoints) {
