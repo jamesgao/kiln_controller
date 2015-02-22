@@ -154,16 +154,18 @@ class Profile(threading.Thread):
 					frac = (ts - time0) / (time1 - time0)
 					setpoint = frac * (temp1 - temp0) + temp0
 					self.pid.setPoint(setpoint)
-
+					
+					pid_out = -1
 					temp = self.therm.temperature.temp
 					if temp == -1:
 						continue #skip invalid temperature readings
-					elif temp - setpoint > 50:
+					elif temp - setpoint > 20:
 						self.regulator.off()
 						self.duty_cycle = True
-					elif self.duty_cycle and temp - setpoint < -20:
-						self.regulator.ignite()
-						self.duty_cycle = False
+					elif self.duty_cycle:
+						if temp - setpoint < -10:
+							self.regulator.ignite()
+							self.duty_cycle = False
 					else:
 						pid_out = self.pid.update(temp)
 						if pid_out < 0: pid_out = 0
