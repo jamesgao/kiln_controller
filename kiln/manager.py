@@ -177,6 +177,6 @@ class Profile(threading.Thread):
 						self.callback(temp, setpoint, pid_out)
 
 			sleep = _next - time.time()
-			if (sleep > 0)
+			if sleep > 0:
 				time.sleep(sleep)
 			_next += self.interval
