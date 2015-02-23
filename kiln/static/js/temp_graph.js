@@ -152,6 +152,8 @@ var tempgraph = (function(module) {
     }
     module.Graph.prototype.resample = function(data) {
         var npoints = 1000;
+        if (data.length<=npoints)
+            return data;
         var idxs = []
         var within = [];
         var within_idx = [];
@@ -161,17 +163,15 @@ var tempgraph = (function(module) {
                 within_idx.push(i);
             }
         }
-        if (within.length>npoints) {
-            md = Math.floor(within.length/npoints);
-            var fin = []
-            for (var i=0; i<within.length; i++) {
-                if (within_idx[i]%md==0)
-                    fin.push(within[i]);
-            }
-            return fin;
-        }
-        else
+        if (within.length<=npoints) 
             return within;
+        md = Math.floor(within.length/npoints);
+        var fin = []
+        for (var i=0; i<within.length; i++) {
+            if (within_idx[i]%md==0)
+                fin.push(within[i]);
+        }
+        return fin;
     }
     module.Graph.prototype.update = function(className, data) {
         var data = this.resample(data);
