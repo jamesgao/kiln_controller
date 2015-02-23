@@ -127,6 +127,7 @@ class Profile(threading.Thread):
 		self.pid = PID.PID(Kp, Ki, Kd)
 		self.callback = callback
 		self.running = True
+		self.duty_cycle = False
 		self.start()
 
 	@property
@@ -142,8 +143,8 @@ class Profile(threading.Thread):
 		self.running = False
 
 	def run(self):
+		_next = time.time()+self.interval
 		while not self.completed and self.running:
-			now = time.time()
 			ts = self.elapsed
 			#find epoch
 			for i in range(len(self.schedule)-1):
@@ -157,13 +158,25 @@ class Profile(threading.Thread):
 					temp = self.therm.temperature.temp
 					if temp == -1:
 						continue #skip invalid temperature readings
-
-					pid_out = self.pid.update(temp)
-					if pid_out < 0: pid_out = 0
-					if pid_out > 1: pid_out = 1
-					self.regulator.set(pid_out)
+					elif temp - setpoint > 10:
+						self.regulator.off()
+						self.duty_cycle = True
+						pid_out = -1
+					elif self.duty_cycle:
+						if temp - setpoint < -5:
+							self.regulator.ignite()
+							self.duty_cycle = False
+						pid_out = -1
+					else:
+						pid_out = self.pid.update(temp)
+						if pid_out < 0: pid_out = 0
+						if pid_out > 1: pid_out = 1
+						self.regulator.set(pid_out)
 
 					if self.callback is not None:
 						self.callback(temp, setpoint, pid_out)
 
-			time.sleep(self.interval - (time.time()-now))
+			sleep = _next - time.time()
+			if sleep > 0:
+				time.sleep(sleep)
+			_next += self.interval
